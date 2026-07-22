@@ -683,6 +683,8 @@
   let pendientes = {};        // ids de comandas creadas sin conexión, aún sin confirmar por el servidor
   let edicionActual = null;   // {id, items:{clave:{n,p,qty,nota,cat}}} — pedido que se está editando, o null
   let categoriaActivaEditar = CATEGORIAS[0];
+  let idsConocidosCocina = new Set(); // para detectar cuáles comandas son nuevas y sonar la alerta
+  let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
 
   const fmt = (n) => "$" + n.toLocaleString('es-CO');
 
@@ -930,15 +932,59 @@
   }
 
   // ---------------------------------------------------------
+  // SONIDO DE ALERTA — COCINA
+  // Genera un tono corto tipo "campanita" con Web Audio, sin
+  // depender de ningún archivo de audio externo.
+  // ---------------------------------------------------------
+  let audioCtxCocina = null;
+  function getAudioCtxCocina(){
+    if(!audioCtxCocina){
+      try{ audioCtxCocina = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e){ audioCtxCocina = null; }
+    }
+    return audioCtxCocina;
+  }
+
+  function sonarAlertaCocina(){
+    const ctx = getAudioCtxCocina();
+    if(!ctx) return;
+    try{
+      [880, 1108].forEach((freq, i)=>{
+        const t0 = ctx.currentTime + i*0.16;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.35, t0+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0+0.32);
+      });
+    } catch(e){ /* si el navegador bloquea audio, seguimos sin sonido */ }
+  }
+
+  // ---------------------------------------------------------
   // VISTA COCINA (sincronizada en vivo con Realtime Database)
   // ---------------------------------------------------------
   function iniciarListenerComandas(){
     db.ref('comandas').on('value', snap=>{
       comandas = [];
+      const idsActuales = new Set();
       snap.forEach(child=>{
         const v = child.val();
         comandas.push({id:child.key, mesa:v.mesa, items:v.items||[], total:v.total, creada:v.creada||Date.now(), tomadoPor:v.tomadoPor});
+        idsActuales.add(child.key);
       });
+      if(!primeraCargaComandas){
+        let hayNuevas = false;
+        idsActuales.forEach(id=>{ if(!idsConocidosCocina.has(id)) hayNuevas = true; });
+        if(hayNuevas && vistaActual === 'cocina') sonarAlertaCocina();
+      }
+      idsConocidosCocina = idsActuales;
+      primeraCargaComandas = false;
       actualizarBadge();
       if(vistaActual === 'cocina') renderCocina();
     });
