@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Comanda · Típico Mojanero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0E2E29;
+    --surface:#153F37;
+    --surface-2:#1C4B42;
+    --surface-3:#245A50;
+    --accent-mango:#F5A623;
+    --accent-mango-ink:#3A2400;
+    --accent-achiote:#E4572E;
+    --fresh:#8BC34A;
+    --warn:#F2C94C;
+    --text:#F7F3E9;
+    --text-muted:#9FC0B6;
+    --border:#2A5750;
+    --radius:16px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg-deep);
+    color:var(--text);
+    font-family:'Public Sans',system-ui,sans-serif;
+    min-height:100vh;
+    padding-bottom:96px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  h1,h2,h3,.brand{font-family:'Fraunces',serif;}
+  button{font-family:inherit;}
+  ::selection{background:var(--accent-mango);color:var(--accent-mango-ink);}
+  :focus-visible{outline:3px solid var(--accent-mango);outline-offset:2px;}
+
+  /* ---------- Header ---------- */
+  header{
+    padding:22px 18px 16px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid var(--border);
+  }
+  header::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(120% 140% at 100% -20%, rgba(245,166,35,.16), transparent 55%),
+      radial-gradient(120% 140% at -10% 120%, rgba(228,87,46,.12), transparent 55%);
+    pointer-events:none;
+  }
+  .brand-row{display:flex;align-items:baseline;gap:10px;position:relative;}
+  .brand{font-size:26px;font-weight:700;letter-spacing:.2px;margin:0;}
+  .brand em{font-style:normal;color:var(--accent-mango);}
+  .tagline{margin:4px 0 0;color:var(--text-muted);font-size:13px;letter-spacing:.3px;text-transform:uppercase;position:relative;}
+  .header-actions{position:absolute;top:20px;right:18px;display:flex;gap:8px;align-items:center;z-index:2;}
+  .rol-badge{font-size:11px;background:var(--surface-3);color:var(--text-muted);padding:4px 10px;border-radius:999px;font-weight:700;white-space:nowrap;}
+  .conexion-badge{font-size:11px;background:var(--surface-3);color:var(--fresh);padding:4px 10px;border-radius:999px;font-weight:700;white-space:nowrap;transition:color .2s ease, background .2s ease;}
+  .conexion-badge.sin-conexion{color:#fff;background:var(--accent-achiote);}
+  .btn-salir{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;padding:5px 10px;border-radius:999px;cursor:pointer;font-weight:700;}
+
+  /* ---------- Tabs ---------- */
+  nav.tabs{
+    display:flex;
+    gap:8px;
+    padding:14px 18px 0;
+    position:sticky;
+    top:0;
+    background:var(--bg-deep);
+    z-index:20;
+  }
+  .tab-btn{
+    flex:1;
+    padding:12px 10px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text-muted);
+    border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+  }
+  .tab-btn.activo{background:var(--surface-3);color:var(--text);border-bottom-color:var(--surface-3);}
+  .tab-badge{
+    background:var(--accent-achiote);
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+    min-width:20px;
+    height:20px;
+    border-radius:10px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 5px;
+  }
+
+  main{padding:0 18px 24px;max-width:900px;margin:0 auto;}
+  .vista{display:none;padding-top:18px;}
+  .vista.activa{display:block;}
+
+  /* ---------- Pedido: categorías ---------- */
+  .chips{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:2px 2px 12px;
+    scrollbar-width:none;
+  }
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto;
+    padding:9px 16px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text-muted);
+    font-weight:600;
+    font-size:13.5px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip.activa{background:var(--accent-mango);color:var(--accent-mango-ink);border-color:var(--accent-mango);}
+
+  .items-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+    gap:10px;
+  }
+  .item-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    padding:14px 12px;
+    text-align:left;
+    cursor:pointer;
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-height:84px;
+    transition:transform .08s ease, background .15s ease;
+  }
+  .item-card:active{transform:scale(.96);background:var(--surface-3);}
+  .item-card .nombre{font-weight:700;font-size:14px;line-height:1.25;}
+  .item-card .precio{font-weight:600;color:var(--accent-mango);font-size:13.5px;}
+  .item-card .qty-tag{
+    align-self:flex-end;
+    background:var(--accent-achiote);
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+    padding:2px 8px;
+    border-radius:999px;
+    margin-top:-30px;
+  }
+
+  .section-title{
+    display:block;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--text-muted);
+    margin:0 0 10px;
+    font-weight:700;
+  }
+
+  /* ---------- Resumen / carrito ---------- */
+  .resumen-bar{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    background:var(--surface-2);
+    border-top:1px solid var(--border);
+    z-index:30;
+    box-shadow:0 -8px 24px rgba(0,0,0,.35);
+  }
+  .resumen-toggle{
+    width:100%;
+    background:none;
+    border:none;
+    color:var(--text);
+    padding:14px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-weight:700;
+    font-size:14.5px;
+    cursor:pointer;
+  }
+  .resumen-toggle .total{color:var(--accent-mango);}
+  .resumen-panel{max-height:0;overflow:hidden;transition:max-height .25s ease;}
+  .resumen-panel.abierto{max-height:70vh;overflow-y:auto;}
+  .resumen-inner{padding:0 18px 18px;}
+  .campo-mesa{
+    display:flex;
+    gap:10px;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+  }
+  .campo-mesa input[type=text]{
+    flex:1;
+    min-width:120px;
+    background:var(--bg-deep);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:var(--radius-sm);
+    font-size:15px;
+  }
+  .llevar-btn{
+    padding:10px 14px;
+    border-radius:var(--radius-sm);
+    border:1px solid var(--border);
+    background:var(--bg-deep);
+    color:var(--text-muted);
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .llevar-btn.activo{background:var(--accent-mango);color:var(--accent-mango-ink);border-color:var(--accent-mango);}
+
+  .linea-item{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .linea-item .info{flex:1;}
+  .linea-item .info .n{font-weight:700;font-size:14px;}
+  .linea-item .info .p{color:var(--text-muted);font-size:12.5px;}
+  .linea-item .stepper{margin-top:2px;}
+  .input-nota{
+    width:100%;
+    margin-top:6px;
+    padding:7px 9px;
+    background:var(--bg-deep);
+    border:1px solid var(--border);
+    border-radius:8px;
+    color:var(--text);
+    font-size:12.5px;
+  }
+  .input-nota::placeholder{color:var(--text-muted);opacity:.7;}
+  .nota-item{color:var(--warn);font-style:italic;font-weight:600;}
+  .stepper{display:flex;align-items:center;gap:8px;}
+  .stepper button{
+    width:28px;height:28px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--bg-deep);
+    color:var(--text);
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+    line-height:1;
+  }
+  .stepper .qty{min-width:18px;text-align:center;font-weight:700;}
+
+  .btn-enviar{
+    width:100%;
+    margin-top:14px;
+    padding:15px;
+    border:none;
+    border-radius:var(--radius-sm);
+    background:var(--accent-achiote);
+    color:#fff;
+    font-weight:800;
+    font-size:15px;
+    letter-spacing:.3px;
+    cursor:pointer;
+  }
+  .btn-enviar:disabled{background:var(--surface-3);color:var(--text-muted);cursor:not-allowed;}
+  .vacio-msg{color:var(--text-muted);font-size:13.5px;padding:8px 0;}
+
+  /* ---------- Cocina ---------- */
+  .cocina-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:14px;
+  }
+  .ticket{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-left:6px solid var(--fresh);
+    border-radius:var(--radius);
+    padding:14px 16px;
+  }
+  .ticket.aviso{border-left-color:var(--warn);}
+  .ticket.urgente{border-left-color:var(--accent-achiote);animation:pulso 1.6s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){.ticket.urgente{animation:none;}}
+  @keyframes pulso{
+    0%,100%{box-shadow:0 0 0 rgba(228,87,46,0);}
+    50%{box-shadow:0 0 0 6px rgba(228,87,46,.12);}
+  }
+  .ticket-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+  .ticket-mesa{font-family:'Fraunces',serif;font-size:20px;font-weight:700;}
+  .ticket-tiempo{
+    font-size:11.5px;
+    font-weight:800;
+    padding:3px 9px;
+    border-radius:999px;
+    background:var(--bg-deep);
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  .ticket.aviso .ticket-tiempo{color:var(--warn);}
+  .ticket.urgente .ticket-tiempo{color:var(--accent-achiote);}
+  .ticket-empleado{font-size:11.5px;color:var(--text-muted);margin-bottom:10px;}
+  .ticket-items{list-style:none;margin:0 0 12px;padding:0;font-size:13.5px;}
+  .ticket-items li{padding:3px 0;display:flex;gap:6px;}
+  .ticket-items li .cant{color:var(--accent-mango);font-weight:800;min-width:22px;}
+  .ticket-nota{font-size:12px;color:var(--text-muted);font-style:italic;margin:-6px 0 12px;}
+  .btn-listo{
+    width:100%;
+    padding:10px;
+    border:none;
+    border-radius:var(--radius-sm);
+    background:var(--fresh);
+    color:#0E2E29;
+    font-weight:800;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .ticket-acciones-sec{display:flex;gap:8px;margin-bottom:8px;}
+  .btn-editar,.btn-cancelar{
+    flex:1;
+    padding:8px;
+    border-radius:var(--radius-sm);
+    font-weight:700;
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  .btn-editar{background:var(--surface-3);border:1px solid var(--border);color:var(--text);}
+  .btn-cancelar{background:none;border:1px solid var(--accent-achiote);color:var(--accent-achiote);}
+  .ticket-editado{background:rgba(242,201,76,.12);border:1px solid var(--warn);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;}
+  .ticket-editado-titulo{font-weight:800;font-size:12.5px;color:var(--warn);margin-bottom:4px;}
+  .ticket-diff{list-style:none;margin:0 0 8px;padding:0;font-size:12.5px;}
+  .ticket-diff li{padding:2px 0;}
+  .btn-visto{width:100%;padding:7px;border:1px solid var(--warn);background:none;color:var(--warn);border-radius:var(--radius-sm);font-weight:700;font-size:12px;cursor:pointer;}
+  .cocina-vacia{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-muted);
+  }
+  .cocina-vacia .emoji{font-size:34px;display:block;margin-bottom:10px;}
+
+  /* ---------- Empleados (solo admin) ---------- */
+  .form-empleado{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+  .form-empleado input{flex:1;min-width:100px;padding:10px 12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;}
+  .btn-agregar-empleado{padding:10px 16px;border:none;border-radius:var(--radius-sm);background:var(--accent-mango);color:var(--accent-mango-ink);font-weight:800;font-size:13.5px;cursor:pointer;white-space:nowrap;}
+  .empleado-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;}
+  .empleado-row .info{flex:1;}
+  .empleado-row .nombre{font-weight:700;font-size:14.5px;}
+  .empleado-row .pin{color:var(--text-muted);font-size:12.5px;font-family:monospace;letter-spacing:2px;}
+  .btn-eliminar{background:none;border:1px solid var(--border);color:var(--accent-achiote);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;flex:0 0 auto;}
+
+  /* ---------- Login ---------- */
+  .login-overlay{
+    position:fixed;inset:0;z-index:100;
+    background:var(--bg-deep);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .login-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:32px 24px;
+    width:100%;max-width:360px;
+    text-align:center;
+  }
+  .login-card .brand{font-size:24px;margin-bottom:4px;}
+  .login-card .tagline{position:static;margin-bottom:22px;}
+  .login-tabs{display:flex;gap:8px;margin-bottom:20px;}
+  .login-tabs button{
+    flex:1;padding:10px;border-radius:var(--radius-sm);
+    border:1px solid var(--border);background:var(--bg-deep);
+    color:var(--text-muted);font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .login-tabs button.activo{background:var(--accent-mango);color:var(--accent-mango-ink);border-color:var(--accent-mango);}
+  .login-form input{
+    width:100%;margin-bottom:10px;padding:12px;
+    background:var(--bg-deep);border:1px solid var(--border);
+    border-radius:var(--radius-sm);color:var(--text);font-size:15px;
+    text-align:center;
+  }
+  .btn-entrar{
+    width:100%;padding:13px;border:none;border-radius:var(--radius-sm);
+    background:var(--accent-achiote);color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;margin-top:4px;
+  }
+  .login-error{color:var(--accent-achiote);font-size:13px;margin-top:12px;min-height:16px;}
+
+  /* ---------- Modal: editar pedido ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.6);
+    z-index:80;
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .modal-overlay.abierto{display:flex;}
+  .modal-card{
+    background:var(--bg-deep);
+    width:100%;max-width:640px;max-height:88vh;
+    border-radius:var(--radius) var(--radius) 0 0;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+    border:1px solid var(--border);
+  }
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--border);}
+  .modal-header h3{margin:0;font-size:17px;}
+  .btn-cerrar-modal{background:none;border:1px solid var(--border);color:var(--text-muted);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;flex:0 0 auto;}
+  .modal-body{padding:16px 18px;overflow-y:auto;flex:1;}
+  .modal-footer{padding:14px 18px;border-top:1px solid var(--border);}
+
+  .toast{
+    position:fixed;
+    top:16px;left:50%;
+    transform:translateX(-50%) translateY(-140%);
+    background:var(--fresh);
+    color:#0E2E29;
+    padding:12px 20px;
+    border-radius:999px;
+    font-weight:800;
+    font-size:13.5px;
+    z-index:150;
+    transition:transform .25s ease;
+    box-shadow:0 8px 20px rgba(0,0,0,.35);
+  }
+  .toast.mostrar{transform:translateX(-50%) translateY(0);}
+
+  @media(min-width:720px){
+    .resumen-panel.abierto{max-height:80vh;}
+    .cocina-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));}
+    .modal-overlay{align-items:center;}
+    .modal-card{border-radius:var(--radius);max-height:80vh;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div class="login-overlay" id="pantalla-login">
+  <div class="login-card">
+    <h1 class="brand">Típico <em>Mojanero</em></h1>
+    <p class="tagline">Comanda digital</p>
+    <div class="login-tabs">
+      <button class="activo" data-tab="empleado" onclick="mostrarLoginTab('empleado')">Soy empleado</button>
+      <button data-tab="admin" onclick="mostrarLoginTab('admin')">Soy admin</button>
+    </div>
+    <div class="login-form" id="login-empleado">
+      <input type="password" inputmode="numeric" id="input-pin" placeholder="PIN" maxlength="6">
+      <button class="btn-entrar" onclick="loginEmpleado()">Entrar</button>
+    </div>
+    <div class="login-form" id="login-admin" style="display:none;">
+      <input type="email" id="input-email" placeholder="Correo">
+      <input type="password" id="input-password" placeholder="Contraseña">
+      <button class="btn-entrar" onclick="loginAdmin()">Entrar</button>
+    </div>
+    <p class="login-error" id="login-error"></p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app-container" style="display:none;">
+  <header>
+    <div class="header-actions">
+      <span class="conexion-badge" id="estado-conexion">🟢 En línea</span>
+      <span class="rol-badge" id="rol-badge"></span>
+      <button class="btn-salir" onclick="salir()">Salir</button>
+    </div>
+    <div class="brand-row">
+      <h1 class="brand">Típico <em>Mojanero</em></h1>
+    </div>
+    <p class="tagline">Comanda digital · cocina en vivo</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn activo" data-vista="pedido" onclick="cambiarVista('pedido')">Tomar pedido</button>
+    <button class="tab-btn" data-vista="cocina" onclick="cambiarVista('cocina')">
+      Cocina <span class="tab-badge" id="badge-cocina">0</span>
+    </button>
+    <button class="tab-btn" data-vista="empleados" onclick="cambiarVista('empleados')" style="display:none;">Empleados</button>
+  </nav>
+
+  <main>
+    <!-- VISTA: TOMAR PEDIDO -->
+    <section id="vista-pedido" class="vista activa">
+      <span class="section-title">Categorías</span>
+      <div class="chips" id="chips-categorias"></div>
+      <div class="items-grid" id="grid-items"></div>
+    </section>
+
+    <!-- VISTA: COCINA -->
+    <section id="vista-cocina" class="vista">
+      <span class="section-title">Comandas activas</span>
+      <div class="cocina-grid" id="grid-cocina"></div>
+    </section>
+
+    <!-- VISTA: EMPLEADOS (solo admin) -->
+    <section id="vista-empleados" class="vista">
+      <span class="section-title">Empleados</span>
+      <div class="form-empleado">
+        <input type="text" id="nuevo-empleado-nombre" placeholder="Nombre">
+        <input type="text" id="nuevo-empleado-pin" inputmode="numeric" placeholder="PIN">
+        <button class="btn-agregar-empleado" onclick="agregarEmpleado()">+ Agregar</button>
+      </div>
+      <div id="lista-empleados"></div>
+    </section>
+  </main>
+
+  <!-- RESUMEN / CARRITO -->
+  <div class="resumen-bar">
+    <button class="resumen-toggle" id="resumen-toggle" onclick="toggleResumen()">
+      <span id="resumen-resumen-texto">🧾 Comanda vacía</span>
+      <span>▲</span>
+    </button>
+    <div class="resumen-panel" id="resumen-panel">
+      <div class="resumen-inner">
+        <div class="campo-mesa">
+          <input type="text" id="input-mesa" placeholder="N° de mesa" oninput="renderResumen()">
+          <button class="llevar-btn" id="btn-llevar" onclick="toggleLlevar()">Para llevar</button>
+        </div>
+        <div id="lista-resumen"></div>
+        <button class="btn-enviar" id="btn-enviar" onclick="enviarComanda()" disabled>Enviar a cocina</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDITAR PEDIDO -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modal-editar-titulo">Editar pedido</h3>
+      <button class="btn-cerrar-modal" onclick="cerrarEdicion()">✕</button>
+    </div>
+    <div class="modal-body">
+      <span class="section-title">Agregar ítems</span>
+      <div class="chips" id="chips-categorias-editar"></div>
+      <div class="items-grid" id="grid-items-editar"></div>
+      <span class="section-title" style="margin-top:18px;">Ítems del pedido</span>
+      <div id="lista-editar"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-enviar" onclick="guardarEdicion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase (compat SDK: funciona con <script> normal, sin bundler) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+  // =========================================================
+  // FIREBASE
+  // =========================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBHC-v6rlHqwi7yJPGTVk14Vi8pwuwfgak",
+    authDomain: "tipico-mojanero.firebaseapp.com",
+    databaseURL: "https://tipico-mojanero-default-rtdb.firebaseio.com",
+    projectId: "tipico-mojanero",
+    storageBucket: "tipico-mojanero.firebasestorage.app",
+    messagingSenderId: "597091840150",
+    appId: "1:597091840150:web:463eff575110cbc00f12b7",
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  // =========================================================
+  // MENÚ — editable. Ajusta nombres y precios exactos según
+  // la carta real de Típico Mojanero antes de usar en producción.
+  // =========================================================
+  const MENU = {
+    "Picadas": [
+      {n:"Picada Mojanera (para 2)", p:48000},
+      {n:"Picada Mixta", p:38000},
+      {n:"Picada de Chicharrón", p:32000},
+    ],
+    "Asados": [
+      {n:"Carne Asada", p:28000},
+      {n:"Pechuga a la Plancha", p:24000},
+      {n:"Costillas BBQ", p:32000},
+    ],
+    "Menú Infantil": [
+      {n:"Nuggets con Papas", p:15000},
+      {n:"Salchipapa Infantil", p:13000},
+      {n:"Hamburguesa Pequeña", p:14000},
+    ],
+    "Hamburguesas": [
+      {n:"Hamburguesa Clásica", p:18000},
+      {n:"Hamburguesa Mojanera", p:24000},
+      {n:"Hamburguesa Doble Carne", p:26000},
+    ],
+    "Emparedados": [
+      {n:"Emparedado de Pollo", p:16000},
+      {n:"Emparedado de Carne Desmechada", p:17000},
+      {n:"Club Sandwich", p:19000},
+    ],
+    "Perros": [
+      {n:"Perro Clásico", p:12000},
+      {n:"Perro Especial Mojanero", p:16000},
+      {n:"Perro Ranchero", p:15000},
+    ],
+    "Desgranados": [
+      {n:"Desgranado de Pollo", p:20000},
+      {n:"Desgranado de Carne", p:22000},
+      {n:"Desgranado Mixto", p:24000},
+    ],
+    "Salchipapas": [
+      {n:"Salchipapa Sencilla", p:14000},
+      {n:"Salchipapa Especial", p:20000},
+      {n:"Salchipapa Mixta", p:22000},
+    ],
+    "Mini Combos": [
+      {n:"Combo Hamburguesa", p:22000},
+      {n:"Combo Perro", p:18000},
+      {n:"Combo Salchipapa", p:20000},
+    ],
+    "Menú Fit": [
+      {n:"Ensalada con Pollo", p:22000},
+      {n:"Bowl Proteico", p:25000},
+      {n:"Wrap Fit de Pollo", p:20000},
+    ],
+    "Jugos Naturales": [
+      {n:"Jugo de Mango", p:8000},
+      {n:"Jugo de Maracuyá", p:8000},
+      {n:"Limonada de Coco", p:9000},
+    ],
+    "Micheladas": [
+      {n:"Michelada Clásica", p:14000},
+      {n:"Michelada Especial", p:17000},
+      {n:"Michelada de Tamarindo", p:16000},
+    ],
+    "Cocteles y Shots": [
+      {n:"Mojito", p:18000},
+      {n:"Piña Colada", p:19000},
+      {n:"Shot de Tequila", p:10000},
+    ],
+    "Malteadas": [
+      {n:"Malteada de Chocolate", p:13000},
+      {n:"Malteada de Fresa", p:13000},
+      {n:"Malteada de Vainilla", p:13000},
+    ],
+    "Gaseosas y Cervezas": [
+      {n:"Gaseosa Personal", p:5000},
+      {n:"Cerveza Águila", p:7000},
+      {n:"Cerveza Poker", p:7000},
+      {n:"Agua", p:3000},
+    ],
+  };
+
+  const CATEGORIAS = Object.keys(MENU);
+
+  // ---------------------------------------------------------
+  // ESTADO
+  // ---------------------------------------------------------
+  let categoriaActiva = CATEGORIAS[0];
+  let pedidoActual = { mesa:"", llevar:false, items:{} };
+  let comandas = [];          // sincronizado en vivo desde Firebase
+  let empleadosCache = [];    // sincronizado en vivo desde Firebase
+  let vistaActual = 'pedido';
+  let rolActual = null;       // 'admin' | 'empleado'
+  let empleadoActual = null;  // {id, nombre}
+  let conectado = true;       // estado de conexión con Firebase
+  let pendientes = {};        // ids de comandas creadas sin conexión, aún sin confirmar por el servidor
+  let edicionActual = null;   // {id, items:{clave:{n,p,qty,nota,cat}}} — pedido que se está editando, o null
+  let categoriaActivaEditar = CATEGORIAS[0];
+
+  const fmt = (n) => "$" + n.toLocaleString('es-CO');
+
+  // ---------------------------------------------------------
+  // LOGIN
+  // ---------------------------------------------------------
+  function mostrarLoginTab(tab){
+    document.getElementById('login-empleado').style.display = tab==='empleado' ? 'block':'none';
+    document.getElementById('login-admin').style.display = tab==='admin' ? 'block':'none';
+    document.querySelectorAll('.login-tabs button').forEach(b=>b.classList.toggle('activo', b.dataset.tab===tab));
+    document.getElementById('login-error').textContent = '';
+  }
+
+  function mostrarErrorLogin(msg){
+    document.getElementById('login-error').textContent = msg;
+  }
+
+  function loginEmpleado(){
+    const pin = document.getElementById('input-pin').value.trim();
+    if(!pin){ mostrarErrorLogin('Escribe tu PIN'); return; }
+    auth.signInAnonymously().then(()=>{
+      return db.ref('empleados').once('value');
+    }).then(snap=>{
+      let encontrado = null;
+      snap.forEach(child=>{
+        const e = child.val();
+        if(String(e.pin) === pin) encontrado = {id:child.key, nombre:e.nombre};
+      });
+      if(encontrado){
+        rolActual = 'empleado';
+        empleadoActual = encontrado;
+        entrarApp();
+      } else {
+        mostrarErrorLogin('PIN incorrecto');
+        auth.signOut();
+      }
+    }).catch(err=>mostrarErrorLogin('Error: ' + err.message));
+  }
+
+  function loginAdmin(){
+    const email = document.getElementById('input-email').value.trim();
+    const pass = document.getElementById('input-password').value;
+    if(!email || !pass){ mostrarErrorLogin('Completa correo y contraseña'); return; }
+    auth.signInWithEmailAndPassword(email, pass).then(()=>{
+      rolActual = 'admin';
+      empleadoActual = null;
+      entrarApp();
+    }).catch(()=>{
+      mostrarErrorLogin('Correo o contraseña incorrectos');
+    });
+  }
+
+  function entrarApp(){
+    document.getElementById('pantalla-login').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    document.getElementById('rol-badge').textContent = rolActual === 'admin'
+      ? 'Admin'
+      : ('Empleado' + (empleadoActual ? ': ' + empleadoActual.nombre : ''));
+    document.querySelector('[data-vista="empleados"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
+    iniciarListenerConexion();
+    iniciarListenerComandas();
+    if(rolActual === 'admin') iniciarListenerEmpleados();
+    renderCategorias();
+    renderItems();
+    renderResumen();
+  }
+
+  function salir(){
+    auth.signOut().then(()=>location.reload());
+  }
+
+  // ---------------------------------------------------------
+  // NAVEGACIÓN
+  // ---------------------------------------------------------
+  function cambiarVista(v){
+    if(v === 'empleados' && rolActual !== 'admin') return;
+    vistaActual = v;
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
+    document.getElementById('vista-pedido').classList.toggle('activa', v==='pedido');
+    document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
+    document.getElementById('vista-empleados').classList.toggle('activa', v==='empleados');
+    if(v==='cocina') renderCocina();
+    if(v==='empleados') renderEmpleadosView();
+  }
+
+  // ---------------------------------------------------------
+  // VISTA PEDIDO
+  // ---------------------------------------------------------
+  function renderCategorias(){
+    const cont = document.getElementById('chips-categorias');
+    cont.innerHTML = CATEGORIAS.map(c =>
+      `<button class="chip ${c===categoriaActiva?'activa':''}" onclick="seleccionarCategoria('${c.replace(/'/g,"\\'")}')">${c}</button>`
+    ).join('');
+  }
+
+  function seleccionarCategoria(c){
+    categoriaActiva = c;
+    renderCategorias();
+    renderItems();
+  }
+
+  function claveItem(cat, n){ return cat + "|||" + n; }
+
+  function renderItems(){
+    const cont = document.getElementById('grid-items');
+    const items = MENU[categoriaActiva] || [];
+    cont.innerHTML = items.map(it => {
+      const key = claveItem(categoriaActiva, it.n);
+      const enPedido = pedidoActual.items[key];
+      return `
+        <button class="item-card" onclick="agregarItem('${categoriaActiva.replace(/'/g,"\\'")}','${it.n.replace(/'/g,"\\'")}',${it.p})">
+          ${enPedido ? `<span class="qty-tag">x${enPedido.qty}</span>` : ''}
+          <span class="nombre">${it.n}</span>
+          <span class="precio">${fmt(it.p)}</span>
+        </button>`;
+    }).join('');
+  }
+
+  function agregarItem(cat, n, p){
+    const key = claveItem(cat, n);
+    if(!pedidoActual.items[key]) pedidoActual.items[key] = {n, p, cat, qty:0, nota:''};
+    pedidoActual.items[key].qty++;
+    renderItems();
+    renderResumen();
+    if(!document.getElementById('resumen-panel').classList.contains('abierto')){
+      mostrarToast(n + ' agregado');
+    }
+  }
+
+  function cambiarQty(key, delta){
+    const it = pedidoActual.items[key];
+    if(!it) return;
+    it.qty += delta;
+    if(it.qty <= 0) delete pedidoActual.items[key];
+    renderItems();
+    renderResumen();
+  }
+
+  function cambiarNota(key, valor){
+    const it = pedidoActual.items[key];
+    if(!it) return;
+    it.nota = valor;
+  }
+
+  function toggleLlevar(){
+    pedidoActual.llevar = !pedidoActual.llevar;
+    document.getElementById('btn-llevar').classList.toggle('activo', pedidoActual.llevar);
+    document.getElementById('input-mesa').disabled = pedidoActual.llevar;
+    document.getElementById('input-mesa').placeholder = pedidoActual.llevar ? 'Para llevar' : 'N° de mesa';
+    renderResumen();
+  }
+
+  function toggleResumen(){
+    document.getElementById('resumen-panel').classList.toggle('abierto');
+  }
+
+  function renderResumen(){
+    const items = Object.values(pedidoActual.items);
+    const totalItems = items.reduce((s,i)=>s+i.qty,0);
+    const totalPrecio = items.reduce((s,i)=>s+i.qty*i.p,0);
+    const texto = document.getElementById('resumen-resumen-texto');
+    texto.innerHTML = totalItems === 0
+      ? '🧾 Comanda vacía'
+      : `🧾 ${totalItems} ítem${totalItems>1?'s':''} · <span class="total">${fmt(totalPrecio)}</span>`;
+
+    const lista = document.getElementById('lista-resumen');
+    lista.innerHTML = items.length === 0
+      ? '<p class="vacio-msg">Toca los platos o bebidas del menú para agregarlos aquí.</p>'
+      : items.map(it => {
+          const key = claveItem(it.cat, it.n);
+          return `
+          <div class="linea-item">
+            <div class="info">
+              <div class="n">${it.n}</div>
+              <div class="p">${fmt(it.p)} c/u</div>
+              <input type="text" class="input-nota" placeholder="Nota (ej: sin cebolla)" value="${(it.nota||'').replace(/"/g,'&quot;')}" oninput="cambiarNota('${key.replace(/'/g,"\\'")}', this.value)">
+            </div>
+            <div class="stepper">
+              <button onclick="cambiarQty('${key.replace(/'/g,"\\'")}',-1)">−</button>
+              <span class="qty">${it.qty}</span>
+              <button onclick="cambiarQty('${key.replace(/'/g,"\\'")}',1)">+</button>
+            </div>
+          </div>`;
+        }).join('');
+
+    pedidoActual.mesa = document.getElementById('input-mesa').value;
+    const btn = document.getElementById('btn-enviar');
+    const mesaOk = pedidoActual.llevar || pedidoActual.mesa.trim().length > 0;
+    btn.disabled = totalItems === 0 || !mesaOk;
+  }
+
+  function enviarComanda(){
+    const items = Object.values(pedidoActual.items).map(i=>({n:i.n, p:i.p, qty:i.qty, nota:i.nota||''}));
+    if(items.length === 0) return;
+    const total = items.reduce((s,i)=>s+i.qty*i.p,0);
+    // Generamos la referencia primero para poder marcarla como "pendiente"
+    // de inmediato — si no hay conexión, Firebase la aplica localmente
+    // igual (optimista) y la reenvía sola cuando vuelva la señal.
+    const nuevaRef = db.ref('comandas').push();
+    pendientes[nuevaRef.key] = true;
+    nuevaRef.set({
+      mesa: pedidoActual.llevar ? 'Para llevar' : ('Mesa ' + pedidoActual.mesa.trim()),
+      items,
+      total,
+      creada: firebase.database.ServerValue.TIMESTAMP,
+      tomadoPor: empleadoActual ? empleadoActual.nombre : 'Admin',
+    }, ()=>{
+      // Se llama cuando el servidor confirma la escritura (puede tardar
+      // si estaba sin conexión y se envía al reconectar).
+      delete pendientes[nuevaRef.key];
+      if(vistaActual === 'cocina') renderCocina();
+    });
+    pedidoActual = { mesa:"", llevar:false, items:{} };
+    document.getElementById('input-mesa').value = '';
+    document.getElementById('btn-llevar').classList.remove('activo');
+    document.getElementById('input-mesa').disabled = false;
+    renderItems();
+    renderResumen();
+    document.getElementById('resumen-panel').classList.remove('abierto');
+    mostrarToast(conectado ? 'Comanda enviada a cocina 🔥' : 'Guardada — se enviará al reconectar 🔌');
+  }
+
+  // ---------------------------------------------------------
+  // CONEXIÓN / MODO SIN INTERNET
+  // Usa el path especial .info/connected de Firebase para saber
+  // en tiempo real si hay conexión con el servidor.
+  // ---------------------------------------------------------
+  function iniciarListenerConexion(){
+    db.ref('.info/connected').on('value', snap=>{
+      conectado = snap.val() === true;
+      actualizarIndicadorConexion();
+    });
+  }
+
+  function actualizarIndicadorConexion(){
+    const el = document.getElementById('estado-conexion');
+    if(!el) return;
+    if(conectado){
+      el.textContent = '🟢 En línea';
+      el.classList.remove('sin-conexion');
+    } else {
+      el.textContent = '🔌 Sin conexión — sigue tomando pedidos';
+      el.classList.add('sin-conexion');
+    }
+  }
+
+  // ---------------------------------------------------------
+  // VISTA COCINA (sincronizada en vivo con Realtime Database)
+  // ---------------------------------------------------------
+  function iniciarListenerComandas(){
+    db.ref('comandas').on('value', snap=>{
+      comandas = [];
+      snap.forEach(child=>{
+        const v = child.val();
+        comandas.push({id:child.key, mesa:v.mesa, items:v.items||[], total:v.total, creada:v.creada||Date.now(), tomadoPor:v.tomadoPor});
+      });
+      actualizarBadge();
+      if(vistaActual === 'cocina') renderCocina();
+    });
+  }
+
+  function minutosDesde(ts){ return Math.max(0, Math.floor((Date.now()-ts)/60000)); }
+
+  function nivelUrgencia(min){
+    if(min >= 20) return 'urgente';
+    if(min >= 10) return 'aviso';
+    return '';
+  }
+
+  function calcularDiff(anterior, actual){
+    const mapAnterior = {};
+    (anterior||[]).forEach(i=>{ mapAnterior[i.n] = (mapAnterior[i.n]||0) + i.qty; });
+    const mapActual = {};
+    (actual||[]).forEach(i=>{ mapActual[i.n] = (mapActual[i.n]||0) + i.qty; });
+    const nombres = new Set([...Object.keys(mapAnterior), ...Object.keys(mapActual)]);
+    const cambios = [];
+    nombres.forEach(n=>{
+      const antes = mapAnterior[n] || 0;
+      const ahora = mapActual[n] || 0;
+      if(ahora > antes) cambios.push(`+${ahora-antes} ${n}`);
+      else if(ahora < antes) cambios.push(`−${antes-ahora} ${n}`);
+    });
+    return cambios;
+  }
+
+  function renderCocina(){
+    const cont = document.getElementById('grid-cocina');
+    if(comandas.length === 0){
+      cont.innerHTML = `<div class="cocina-vacia" style="grid-column:1/-1;">
+        <span class="emoji">🍳</span>
+        Aún no hay comandas activas.<br>Las que se envíen desde "Tomar pedido" aparecen aquí.
+      </div>`;
+      return;
+    }
+    const ordenadas = [...comandas].sort((a,b)=>a.creada-b.creada);
+    cont.innerHTML = ordenadas.map(c => {
+      const min = minutosDesde(c.creada);
+      const nivel = nivelUrgencia(min);
+      const esPendiente = !!pendientes[c.id];
+      return `
+      <div class="ticket ${nivel}">
+        <div class="ticket-top">
+          <span class="ticket-mesa">${c.mesa}</span>
+          <span class="ticket-tiempo">${esPendiente ? '🔌 sincronizando…' : 'hace ' + min + ' min'}</span>
+        </div>
+        ${c.tomadoPor ? `<div class="ticket-empleado">Tomó: ${c.tomadoPor}</div>` : ''}
+        ${c.editada ? `
+          <div class="ticket-editado">
+            <div class="ticket-editado-titulo">✏️ Pedido modificado</div>
+            <ul class="ticket-diff">
+              ${calcularDiff(c.itemsAnterior, c.items).map(cambio=>`<li>${cambio}</li>`).join('')}
+            </ul>
+            <button class="btn-visto" onclick="marcarVisto('${c.id}')">👁 Visto</button>
+          </div>
+        ` : ''}
+        <ul class="ticket-items">
+          ${c.items.map(i=>`<li><span class="cant">${i.qty}×</span> ${i.n}${i.nota ? ` <span class="nota-item">— ${i.nota}</span>` : ''}</li>`).join('')}
+        </ul>
+        <div class="ticket-acciones-sec">
+          <button class="btn-editar" onclick="abrirEdicion('${c.id}')">✏️ Editar</button>
+          <button class="btn-cancelar" onclick="cancelarComanda('${c.id}')">✕ Cancelar</button>
+        </div>
+        <button class="btn-listo" onclick="marcarLista('${c.id}')">✓ Marcar como lista</button>
+      </div>`;
+    }).join('');
+  }
+
+  function marcarLista(id){
+    db.ref('comandas/'+id).remove();
+    mostrarToast('Comanda entregada ✓');
+  }
+
+  function marcarVisto(id){
+    db.ref('comandas/'+id).update({editada:false});
+  }
+
+  function cancelarComanda(id){
+    const c = comandas.find(x=>x.id===id);
+    if(!c) return;
+    if(!confirm(`¿Cancelar el pedido de ${c.mesa}? Esta acción no se puede deshacer.`)) return;
+    db.ref('canceladas/'+id).set({
+      mesa: c.mesa,
+      items: c.items,
+      total: c.total,
+      creada: c.creada,
+      tomadoPor: c.tomadoPor || null,
+      canceladaPor: empleadoActual ? empleadoActual.nombre : 'Admin',
+      canceladaEn: firebase.database.ServerValue.TIMESTAMP,
+    });
+    db.ref('comandas/'+id).remove();
+    mostrarToast('Pedido cancelado');
+  }
+
+  function actualizarBadge(){
+    document.getElementById('badge-cocina').textContent = comandas.length;
+  }
+
+  // Refresca los tiempos/urgencia visualmente cada 20s (los datos ya llegan en vivo)
+  setInterval(()=>{ if(vistaActual==='cocina') renderCocina(); }, 20000);
+
+  // ---------------------------------------------------------
+  // VISTA EMPLEADOS (solo admin)
+  // ---------------------------------------------------------
+  function iniciarListenerEmpleados(){
+    db.ref('empleados').on('value', snap=>{
+      empleadosCache = [];
+      snap.forEach(child=>{
+        empleadosCache.push({id:child.key, nombre:child.val().nombre, pin:child.val().pin});
+      });
+      if(vistaActual === 'empleados') renderEmpleadosView();
+    });
+  }
+
+  function renderEmpleadosView(){
+    const cont = document.getElementById('lista-empleados');
+    cont.innerHTML = empleadosCache.length === 0
+      ? '<p class="vacio-msg">Aún no hay empleados registrados. Agrega el primero arriba.</p>'
+      : empleadosCache.map(e => `
+        <div class="empleado-row">
+          <div class="info">
+            <div class="nombre">${e.nombre}</div>
+            <div class="pin">PIN: ${e.pin}</div>
+          </div>
+          <button class="btn-eliminar" onclick="eliminarEmpleado('${e.id}')">✕</button>
+        </div>`).join('');
+  }
+
+  function agregarEmpleado(){
+    const nombreInput = document.getElementById('nuevo-empleado-nombre');
+    const pinInput = document.getElementById('nuevo-empleado-pin');
+    const nombre = nombreInput.value.trim();
+    const pin = pinInput.value.trim();
+    if(!nombre || !pin) return;
+    db.ref('empleados').push({nombre, pin});
+    nombreInput.value = '';
+    pinInput.value = '';
+  }
+
+  function eliminarEmpleado(id){
+    db.ref('empleados/'+id).remove();
+  }
+
+  // ---------------------------------------------------------
+  // MODAL: EDITAR PEDIDO
+  // Reutiliza el mismo MENU para agregar/quitar ítems de un
+  // pedido que ya se envió a cocina, sin perder su hora de
+  // creación ni su lugar en la fila.
+  // ---------------------------------------------------------
+  function abrirEdicion(id){
+    const c = comandas.find(x=>x.id===id);
+    if(!c) return;
+    const items = {};
+    c.items.forEach(it=>{
+      let catEncontrada = 'Otros';
+      for(const cat of CATEGORIAS){
+        if(MENU[cat].some(m=>m.n === it.n)){ catEncontrada = cat; break; }
+      }
+      const key = claveItem(catEncontrada, it.n);
+      items[key] = { n:it.n, p:it.p, qty:it.qty, nota:it.nota||'', cat:catEncontrada };
+    });
+    edicionActual = { id: c.id, items };
+    categoriaActivaEditar = CATEGORIAS[0];
+    document.getElementById('modal-editar-titulo').textContent = 'Editar pedido — ' + c.mesa;
+    document.getElementById('modal-editar').classList.add('abierto');
+    renderCategoriasEditar();
+    renderItemsEditar();
+    renderListaEditar();
+  }
+
+  function cerrarEdicion(){
+    edicionActual = null;
+    document.getElementById('modal-editar').classList.remove('abierto');
+  }
+
+  function renderCategoriasEditar(){
+    const cont = document.getElementById('chips-categorias-editar');
+    cont.innerHTML = CATEGORIAS.map(c =>
+      `<button class="chip ${c===categoriaActivaEditar?'activa':''}" onclick="seleccionarCategoriaEditar('${c.replace(/'/g,"\\'")}')">${c}</button>`
+    ).join('');
+  }
+
+  function seleccionarCategoriaEditar(c){
+    categoriaActivaEditar = c;
+    renderCategoriasEditar();
+    renderItemsEditar();
+  }
+
+  function renderItemsEditar(){
+    const cont = document.getElementById('grid-items-editar');
+    const items = MENU[categoriaActivaEditar] || [];
+    cont.innerHTML = items.map(it => {
+      const key = claveItem(categoriaActivaEditar, it.n);
+      const enPedido = edicionActual.items[key];
+      return `
+        <button class="item-card" onclick="agregarItemEditar('${categoriaActivaEditar.replace(/'/g,"\\'")}','${it.n.replace(/'/g,"\\'")}',${it.p})">
+          ${enPedido ? `<span class="qty-tag">x${enPedido.qty}</span>` : ''}
+          <span class="nombre">${it.n}</span>
+          <span class="precio">${fmt(it.p)}</span>
+        </button>`;
+    }).join('');
+  }
+
+  function agregarItemEditar(cat, n, p){
+    const key = claveItem(cat, n);
+    if(!edicionActual.items[key]) edicionActual.items[key] = {n, p, cat, qty:0, nota:''};
+    edicionActual.items[key].qty++;
+    renderItemsEditar();
+    renderListaEditar();
+  }
+
+  function cambiarQtyEditar(key, delta){
+    const it = edicionActual.items[key];
+    if(!it) return;
+    it.qty += delta;
+    if(it.qty <= 0) delete edicionActual.items[key];
+    renderItemsEditar();
+    renderListaEditar();
+  }
+
+  function cambiarNotaEditar(key, valor){
+    const it = edicionActual.items[key];
+    if(!it) return;
+    it.nota = valor;
+  }
+
+  function renderListaEditar(){
+    const cont = document.getElementById('lista-editar');
+    const items = Object.values(edicionActual.items);
+    cont.innerHTML = items.length === 0
+      ? '<p class="vacio-msg">Este pedido quedaría vacío. Agrega al menos un ítem, o mejor cancela el pedido.</p>'
+      : items.map(it => {
+          const key = claveItem(it.cat, it.n);
+          return `
+          <div class="linea-item">
+            <div class="info">
+              <div class="n">${it.n}</div>
+              <input type="text" class="input-nota" placeholder="Nota (ej: sin cebolla)" value="${(it.nota||'').replace(/"/g,'&quot;')}" oninput="cambiarNotaEditar('${key.replace(/'/g,"\\'")}', this.value)">
+            </div>
+            <div class="stepper">
+              <button onclick="cambiarQtyEditar('${key.replace(/'/g,"\\'")}',-1)">−</button>
+              <span class="qty">${it.qty}</span>
+              <button onclick="cambiarQtyEditar('${key.replace(/'/g,"\\'")}',1)">+</button>
+            </div>
+          </div>`;
+        }).join('');
+  }
+
+  function guardarEdicion(){
+    if(!edicionActual) return;
+    const nuevosItems = Object.values(edicionActual.items).map(i=>({n:i.n, p:i.p, qty:i.qty, nota:i.nota||''}));
+    if(nuevosItems.length === 0){
+      mostrarToast('Agrega al menos un ítem, o cancela el pedido');
+      return;
+    }
+    const total = nuevosItems.reduce((s,i)=>s+i.qty*i.p,0);
+    const original = comandas.find(x=>x.id===edicionActual.id);
+    db.ref('comandas/'+edicionActual.id).update({
+      items: nuevosItems,
+      total,
+      itemsAnterior: original ? original.items : [],
+      editada: true,
+    });
+    cerrarEdicion();
+    mostrarToast('Pedido actualizado ✏️');
+  }
+
+  // ---------------------------------------------------------
+  // TOAST
+  // ---------------------------------------------------------
+  let toastTimeout;
+  function mostrarToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('mostrar');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(()=>t.classList.remove('mostrar'), 1800);
+  }
+</script>
+</body>
+</html>
