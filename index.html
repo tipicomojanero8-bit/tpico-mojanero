@@ -6,35 +6,38 @@
 <title>Comanda · Típico Mojanero</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-deep:#0E2E29;
-    --surface:#153F37;
-    --surface-2:#1C4B42;
-    --surface-3:#245A50;
-    --accent-mango:#F5A623;
-    --accent-mango-ink:#3A2400;
-    --accent-achiote:#E4572E;
-    --fresh:#8BC34A;
-    --warn:#F2C94C;
-    --text:#F7F3E9;
-    --text-muted:#9FC0B6;
-    --border:#2A5750;
+    --bg-deep:#F3E4C8;
+    --surface:#FFFBF2;
+    --surface-2:#F7ECD3;
+    --surface-3:#EFDCC0;
+    --accent-mango:#E8A93A;
+    --accent-mango-ink:#3D2314;
+    --accent-achiote:#C1401C;
+    --fresh:#4C7A3D;
+    --warn:#A8681A;
+    --text:#3D2314;
+    --text-muted:#8B6F52;
+    --border:#E0C89C;
     --radius:16px;
     --radius-sm:10px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:var(--bg-deep);
+    background:
+      radial-gradient(ellipse at top left, rgba(232,169,58,.18), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(193,64,28,.10), transparent 50%),
+      var(--bg-deep);
     color:var(--text);
-    font-family:'Public Sans',system-ui,sans-serif;
+    font-family:'Nunito',system-ui,sans-serif;
     min-height:100vh;
     padding-bottom:96px;
     -webkit-tap-highlight-color:transparent;
   }
-  h1,h2,h3,.brand{font-family:'Fraunces',serif;}
+  .brand{font-family:'Pacifico',cursive;font-weight:400;}
   button{font-family:inherit;}
   ::selection{background:var(--accent-mango);color:var(--accent-mango-ink);}
   :focus-visible{outline:3px solid var(--accent-mango);outline-offset:2px;}
@@ -51,12 +54,12 @@
     position:absolute;
     inset:0;
     background:
-      radial-gradient(120% 140% at 100% -20%, rgba(245,166,35,.16), transparent 55%),
-      radial-gradient(120% 140% at -10% 120%, rgba(228,87,46,.12), transparent 55%);
+      radial-gradient(120% 140% at 100% -20%, rgba(232,169,58,.20), transparent 55%),
+      radial-gradient(120% 140% at -10% 120%, rgba(193,64,28,.14), transparent 55%);
     pointer-events:none;
   }
   .brand-row{display:flex;align-items:baseline;gap:10px;position:relative;}
-  .brand{font-size:26px;font-weight:700;letter-spacing:.2px;margin:0;}
+  .brand{font-size:26px;letter-spacing:.2px;margin:0;color:var(--accent-achiote);}
   .brand em{font-style:normal;color:var(--accent-mango);}
   .tagline{margin:4px 0 0;color:var(--text-muted);font-size:13px;letter-spacing:.3px;text-transform:uppercase;position:relative;}
   .header-actions{position:absolute;top:20px;right:18px;display:flex;gap:8px;align-items:center;z-index:2;}
@@ -154,7 +157,7 @@
   }
   .item-card:active{transform:scale(.96);background:var(--surface-3);}
   .item-card .nombre{font-weight:700;font-size:14px;line-height:1.25;}
-  .item-card .precio{font-weight:600;color:var(--accent-mango);font-size:13.5px;}
+  .item-card .precio{font-weight:600;color:var(--fresh);font-size:13.5px;}
   .item-card .qty-tag{
     align-self:flex-end;
     background:var(--accent-achiote);
@@ -198,7 +201,7 @@
     font-size:14.5px;
     cursor:pointer;
   }
-  .resumen-toggle .total{color:var(--accent-mango);}
+  .resumen-toggle .total{color:var(--fresh);}
   .resumen-panel{max-height:0;overflow:hidden;transition:max-height .25s ease;}
   .resumen-panel.abierto{max-height:70vh;overflow-y:auto;}
   .resumen-inner{padding:0 18px 18px;}
@@ -300,11 +303,11 @@
   .ticket.urgente{border-left-color:var(--accent-achiote);animation:pulso 1.6s ease-in-out infinite;}
   @media (prefers-reduced-motion: reduce){.ticket.urgente{animation:none;}}
   @keyframes pulso{
-    0%,100%{box-shadow:0 0 0 rgba(228,87,46,0);}
-    50%{box-shadow:0 0 0 6px rgba(228,87,46,.12);}
+    0%,100%{box-shadow:0 0 0 rgba(193,64,28,0);}
+    50%{box-shadow:0 0 0 6px rgba(193,64,28,.16);}
   }
   .ticket-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
-  .ticket-mesa{font-family:'Fraunces',serif;font-size:20px;font-weight:700;}
+  .ticket-mesa{font-family:'Pacifico',cursive;font-weight:400;font-size:20px;}
   .ticket-tiempo{
     font-size:11.5px;
     font-weight:800;
@@ -319,7 +322,7 @@
   .ticket-empleado{font-size:11.5px;color:var(--text-muted);margin-bottom:10px;}
   .ticket-items{list-style:none;margin:0 0 12px;padding:0;font-size:13.5px;}
   .ticket-items li{padding:3px 0;display:flex;gap:6px;}
-  .ticket-items li .cant{color:var(--accent-mango);font-weight:800;min-width:22px;}
+  .ticket-items li .cant{color:var(--accent-achiote);font-weight:800;min-width:22px;}
   .ticket-nota{font-size:12px;color:var(--text-muted);font-style:italic;margin:-6px 0 12px;}
   .btn-listo{
     width:100%;
@@ -327,7 +330,7 @@
     border:none;
     border-radius:var(--radius-sm);
     background:var(--fresh);
-    color:#0E2E29;
+    color:#fff;
     font-weight:800;
     font-size:13.5px;
     cursor:pointer;
@@ -343,7 +346,7 @@
   }
   .btn-editar{background:var(--surface-3);border:1px solid var(--border);color:var(--text);}
   .btn-cancelar{background:none;border:1px solid var(--accent-achiote);color:var(--accent-achiote);}
-  .ticket-editado{background:rgba(242,201,76,.12);border:1px solid var(--warn);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;}
+  .ticket-editado{background:rgba(232,169,58,.18);border:1px solid var(--warn);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;}
   .ticket-editado-titulo{font-weight:800;font-size:12.5px;color:var(--warn);margin-bottom:4px;}
   .ticket-diff{list-style:none;margin:0 0 8px;padding:0;font-size:12.5px;}
   .ticket-diff li{padding:2px 0;}
@@ -438,7 +441,7 @@
     font-weight:400;
     line-height:1;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 8px 20px rgba(228,87,46,.45);
+    box-shadow:0 8px 20px rgba(193,64,28,.45);
     cursor:pointer;
     z-index:40;
   }
@@ -459,7 +462,7 @@
     border-bottom:1px solid var(--border);
     z-index:5;
   }
-  .np-header h2{margin:0;font-size:19px;font-family:'Fraunces',serif;}
+  .np-header h2{margin:0;font-size:22px;font-family:'Pacifico',cursive;font-weight:400;color:var(--accent-achiote);}
   .btn-cerrar-np{background:none;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px;flex:0 0 auto;}
   .np-body{padding:16px 18px 110px;max-width:900px;margin:0 auto;width:100%;}
 
@@ -468,7 +471,7 @@
     top:16px;left:50%;
     transform:translateX(-50%) translateY(-140%);
     background:var(--fresh);
-    color:#0E2E29;
+    color:#fff;
     padding:12px 20px;
     border-radius:999px;
     font-weight:800;
