@@ -425,6 +425,44 @@
   .modal-body{padding:16px 18px;overflow-y:auto;flex:1;}
   .modal-footer{padding:14px 18px;border-top:1px solid var(--border);}
 
+  /* ---------- FAB + pantalla completa: nuevo pedido ---------- */
+  .fab-nuevo-pedido{
+    position:fixed;
+    right:20px;bottom:24px;
+    width:60px;height:60px;
+    border-radius:50%;
+    border:none;
+    background:var(--accent-achiote);
+    color:#fff;
+    font-size:30px;
+    font-weight:400;
+    line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 20px rgba(228,87,46,.45);
+    cursor:pointer;
+    z-index:40;
+  }
+  .pantalla-nuevo-pedido{
+    display:none;
+    flex-direction:column;
+    position:fixed;inset:0;
+    z-index:90;
+    background:var(--bg-deep);
+    overflow-y:auto;
+  }
+  .pantalla-nuevo-pedido.abierta{display:flex;}
+  .np-header{
+    position:sticky;top:0;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 18px;
+    background:var(--bg-deep);
+    border-bottom:1px solid var(--border);
+    z-index:5;
+  }
+  .np-header h2{margin:0;font-size:19px;font-family:'Fraunces',serif;}
+  .btn-cerrar-np{background:none;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px;flex:0 0 auto;}
+  .np-body{padding:16px 18px 110px;max-width:900px;margin:0 auto;width:100%;}
+
   .toast{
     position:fixed;
     top:16px;left:50%;
@@ -488,23 +526,15 @@
   </header>
 
   <nav class="tabs">
-    <button class="tab-btn activo" data-vista="pedido" onclick="cambiarVista('pedido')">Tomar pedido</button>
-    <button class="tab-btn" data-vista="cocina" onclick="cambiarVista('cocina')">
+    <button class="tab-btn activo" data-vista="cocina" onclick="cambiarVista('cocina')">
       Cocina <span class="tab-badge" id="badge-cocina">0</span>
     </button>
     <button class="tab-btn" data-vista="empleados" onclick="cambiarVista('empleados')" style="display:none;">Empleados</button>
   </nav>
 
   <main>
-    <!-- VISTA: TOMAR PEDIDO -->
-    <section id="vista-pedido" class="vista activa">
-      <span class="section-title">Categorías</span>
-      <div class="chips" id="chips-categorias"></div>
-      <div class="items-grid" id="grid-items"></div>
-    </section>
-
     <!-- VISTA: COCINA -->
-    <section id="vista-cocina" class="vista">
+    <section id="vista-cocina" class="vista activa">
       <span class="section-title">Comandas activas</span>
       <div class="cocina-grid" id="grid-cocina"></div>
     </section>
@@ -520,6 +550,21 @@
       <div id="lista-empleados"></div>
     </section>
   </main>
+
+  <button class="fab-nuevo-pedido" id="fab-nuevo-pedido" onclick="abrirNuevoPedido()">+</button>
+</div>
+
+<!-- PANTALLA COMPLETA: NUEVO PEDIDO -->
+<div class="pantalla-nuevo-pedido" id="pantalla-nuevo-pedido">
+  <div class="np-header">
+    <h2>Nuevo pedido</h2>
+    <button class="btn-cerrar-np" onclick="cerrarNuevoPedido()">✕</button>
+  </div>
+  <div class="np-body">
+    <span class="section-title">Categorías</span>
+    <div class="chips" id="chips-categorias"></div>
+    <div class="items-grid" id="grid-items"></div>
+  </div>
 
   <!-- RESUMEN / CARRITO -->
   <div class="resumen-bar">
@@ -676,7 +721,7 @@
   let pedidoActual = { mesa:"", llevar:false, items:{} };
   let comandas = [];          // sincronizado en vivo desde Firebase
   let empleadosCache = [];    // sincronizado en vivo desde Firebase
-  let vistaActual = 'pedido';
+  let vistaActual = 'cocina';
   let rolActual = null;       // 'admin' | 'empleado'
   let empleadoActual = null;  // {id, nombre}
   let conectado = true;       // estado de conexión con Firebase
@@ -750,6 +795,7 @@
     renderCategorias();
     renderItems();
     renderResumen();
+    renderCocina();
   }
 
   function salir(){
@@ -763,11 +809,23 @@
     if(v === 'empleados' && rolActual !== 'admin') return;
     vistaActual = v;
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
-    document.getElementById('vista-pedido').classList.toggle('activa', v==='pedido');
     document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
     document.getElementById('vista-empleados').classList.toggle('activa', v==='empleados');
     if(v==='cocina') renderCocina();
     if(v==='empleados') renderEmpleadosView();
+  }
+
+  function abrirNuevoPedido(){
+    document.getElementById('pantalla-nuevo-pedido').classList.add('abierta');
+    renderCategorias();
+    renderItems();
+    renderResumen();
+  }
+
+  function cerrarNuevoPedido(){
+    const hayItems = Object.keys(pedidoActual.items).length > 0;
+    if(hayItems && !confirm('Tienes ítems sin enviar en este pedido. ¿Cerrar de todas formas?')) return;
+    document.getElementById('pantalla-nuevo-pedido').classList.remove('abierta');
   }
 
   // ---------------------------------------------------------
@@ -904,6 +962,7 @@
     renderItems();
     renderResumen();
     document.getElementById('resumen-panel').classList.remove('abierto');
+    cerrarNuevoPedido();
     mostrarToast(conectado ? 'Comanda enviada a cocina 🔥' : 'Guardada — se enviará al reconectar 🔌');
   }
 
