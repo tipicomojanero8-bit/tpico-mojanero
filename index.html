@@ -335,6 +335,18 @@
     font-size:13.5px;
     cursor:pointer;
   }
+  .btn-cobrar{
+    width:100%;
+    padding:10px;
+    border:none;
+    border-radius:var(--radius-sm);
+    background:var(--accent-mango);
+    color:var(--accent-mango-ink);
+    font-weight:800;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .ticket.lista-cobro{border-left-color:var(--accent-mango);}
   .ticket-acciones-sec{display:flex;gap:8px;margin-bottom:8px;}
   .btn-editar,.btn-cancelar{
     flex:1;
@@ -427,6 +439,35 @@
   .btn-cerrar-modal{background:none;border:1px solid var(--border);color:var(--text-muted);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;flex:0 0 auto;}
   .modal-body{padding:16px 18px;overflow-y:auto;flex:1;}
   .modal-footer{padding:14px 18px;border-top:1px solid var(--border);}
+
+  /* ---------- Modal: cobrar pedido ---------- */
+  .cobro-total{font-size:30px;font-weight:400;color:var(--fresh);margin:0 0 18px;font-family:'Pacifico',cursive;}
+  .metodos-pago{display:flex;gap:8px;margin-bottom:16px;}
+  .metodo-btn{
+    flex:1;
+    padding:14px 6px;
+    border-radius:var(--radius-sm);
+    border:2px solid var(--border);
+    background:var(--surface);
+    color:var(--text);
+    font-weight:700;
+    font-size:12.5px;
+    cursor:pointer;
+    text-align:center;
+  }
+  .metodo-btn.activo{border-color:var(--accent-mango);background:rgba(232,169,58,.15);}
+  .campo-mixto{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .campo-mixto label{width:70px;flex:0 0 auto;font-weight:700;font-size:13.5px;}
+  .campo-mixto input{
+    flex:1;
+    padding:10px 12px;
+    border-radius:var(--radius-sm);
+    border:1px solid var(--border);
+    background:var(--bg-deep);
+    color:var(--text);
+    font-size:15px;
+  }
+  .mixto-aviso{font-size:12.5px;color:var(--accent-achiote);margin:6px 0 0;min-height:16px;}
 
   /* ---------- FAB + pantalla completa: nuevo pedido ---------- */
   .fab-nuevo-pedido{
@@ -608,6 +649,39 @@
   </div>
 </div>
 
+<!-- MODAL: COBRAR PEDIDO -->
+<div class="modal-overlay" id="modal-cobrar">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modal-cobrar-titulo">Cobrar pedido</h3>
+      <button class="btn-cerrar-modal" onclick="cerrarCobro()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="cobro-total" id="cobro-total-texto"></p>
+      <span class="section-title">Método de pago</span>
+      <div class="metodos-pago" id="metodos-pago">
+        <button class="metodo-btn" data-metodo="efectivo" onclick="seleccionarMetodo('efectivo')">💵 Efectivo</button>
+        <button class="metodo-btn" data-metodo="nequi" onclick="seleccionarMetodo('nequi')">📱 Nequi</button>
+        <button class="metodo-btn" data-metodo="mixto" onclick="seleccionarMetodo('mixto')">🔀 Mixto</button>
+      </div>
+      <div id="mixto-detalle" style="display:none;">
+        <div class="campo-mixto">
+          <label>Efectivo</label>
+          <input type="number" id="mixto-efectivo" inputmode="numeric" placeholder="0" oninput="validarMixto()">
+        </div>
+        <div class="campo-mixto">
+          <label>Nequi</label>
+          <input type="number" id="mixto-nequi" inputmode="numeric" placeholder="0" oninput="validarMixto()">
+        </div>
+        <p class="mixto-aviso" id="mixto-aviso"></p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-enviar" id="btn-confirmar-cobro" onclick="confirmarCobro()" disabled>Confirmar cobro</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Firebase (compat SDK: funciona con <script> normal, sin bundler) -->
@@ -733,6 +807,7 @@
   let categoriaActivaEditar = CATEGORIAS[0];
   let idsConocidosCocina = new Set(); // para detectar cuáles comandas son nuevas y sonar la alerta
   let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
+  let pedidoEnCobro = null;           // {id, total, mesa, metodo} — pedido que se está cobrando, o null
 
   const fmt = (n) => "$" + n.toLocaleString('es-CO');
 
@@ -1037,7 +1112,7 @@
       const idsActuales = new Set();
       snap.forEach(child=>{
         const v = child.val();
-        comandas.push({id:child.key, mesa:v.mesa, items:v.items||[], total:v.total, creada:v.creada||Date.now(), tomadoPor:v.tomadoPor});
+        comandas.push({id:child.key, mesa:v.mesa, items:v.items||[], total:v.total, creada:v.creada||Date.now(), tomadoPor:v.tomadoPor, estado:v.estado||'cocina', listaEn:v.listaEn||null});
         idsActuales.add(child.key);
       });
       if(!primeraCargaComandas){
@@ -1087,14 +1162,15 @@
     }
     const ordenadas = [...comandas].sort((a,b)=>a.creada-b.creada);
     cont.innerHTML = ordenadas.map(c => {
-      const min = minutosDesde(c.creada);
-      const nivel = nivelUrgencia(min);
+      const listaParaCobrar = c.estado === 'lista';
+      const min = listaParaCobrar ? minutosDesde(c.listaEn || c.creada) : minutosDesde(c.creada);
+      const nivel = listaParaCobrar ? 'lista-cobro' : nivelUrgencia(min);
       const esPendiente = !!pendientes[c.id];
       return `
       <div class="ticket ${nivel}">
         <div class="ticket-top">
           <span class="ticket-mesa">${c.mesa}</span>
-          <span class="ticket-tiempo">${esPendiente ? '🔌 sincronizando…' : 'hace ' + min + ' min'}</span>
+          <span class="ticket-tiempo">${esPendiente ? '🔌 sincronizando…' : (listaParaCobrar ? '✅ lista hace ' + min + ' min' : 'hace ' + min + ' min')}</span>
         </div>
         ${c.tomadoPor ? `<div class="ticket-empleado">Tomó: ${c.tomadoPor}</div>` : ''}
         ${c.editada ? `
@@ -1113,14 +1189,17 @@
           <button class="btn-editar" onclick="abrirEdicion('${c.id}')">✏️ Editar</button>
           <button class="btn-cancelar" onclick="cancelarComanda('${c.id}')">✕ Cancelar</button>
         </div>
-        <button class="btn-listo" onclick="marcarLista('${c.id}')">✓ Marcar como lista</button>
+        ${listaParaCobrar
+          ? `<button class="btn-cobrar" onclick="abrirCobro('${c.id}')">💰 Cobrar ${fmt(c.total)}</button>`
+          : `<button class="btn-listo" onclick="marcarLista('${c.id}')">✓ Marcar como lista</button>`
+        }
       </div>`;
     }).join('');
   }
 
   function marcarLista(id){
-    db.ref('comandas/'+id).remove();
-    mostrarToast('Comanda entregada ✓');
+    db.ref('comandas/'+id).update({estado:'lista', listaEn: firebase.database.ServerValue.TIMESTAMP});
+    mostrarToast('Pedido listo — falta cobrar 💰');
   }
 
   function marcarVisto(id){
@@ -1315,6 +1394,84 @@
     });
     cerrarEdicion();
     mostrarToast('Pedido actualizado ✏️');
+  }
+
+  // ---------------------------------------------------------
+  // MODAL: COBRAR PEDIDO
+  // Cierra un pedido "listo" registrando el método de pago.
+  // Crédito llega en el próximo paso, junto con el sistema de
+  // deudores — por ahora solo efectivo, Nequi y mixto.
+  // ---------------------------------------------------------
+  function abrirCobro(id){
+    const c = comandas.find(x=>x.id===id);
+    if(!c) return;
+    pedidoEnCobro = { id: c.id, total: c.total, mesa: c.mesa, metodo: null };
+    document.getElementById('modal-cobrar-titulo').textContent = 'Cobrar — ' + c.mesa;
+    document.getElementById('cobro-total-texto').textContent = fmt(c.total);
+    document.querySelectorAll('.metodo-btn').forEach(b=>b.classList.remove('activo'));
+    document.getElementById('mixto-detalle').style.display = 'none';
+    document.getElementById('mixto-efectivo').value = '';
+    document.getElementById('mixto-nequi').value = '';
+    document.getElementById('mixto-aviso').textContent = '';
+    document.getElementById('btn-confirmar-cobro').disabled = true;
+    document.getElementById('modal-cobrar').classList.add('abierto');
+  }
+
+  function cerrarCobro(){
+    pedidoEnCobro = null;
+    document.getElementById('modal-cobrar').classList.remove('abierto');
+  }
+
+  function seleccionarMetodo(metodo){
+    if(!pedidoEnCobro) return;
+    pedidoEnCobro.metodo = metodo;
+    document.querySelectorAll('.metodo-btn').forEach(b=>b.classList.toggle('activo', b.dataset.metodo===metodo));
+    const esMixto = metodo === 'mixto';
+    document.getElementById('mixto-detalle').style.display = esMixto ? 'block' : 'none';
+    if(esMixto){
+      validarMixto();
+    } else {
+      document.getElementById('btn-confirmar-cobro').disabled = false;
+    }
+  }
+
+  function validarMixto(){
+    if(!pedidoEnCobro) return;
+    const efectivo = Number(document.getElementById('mixto-efectivo').value) || 0;
+    const nequi = Number(document.getElementById('mixto-nequi').value) || 0;
+    const suma = efectivo + nequi;
+    const aviso = document.getElementById('mixto-aviso');
+    const btn = document.getElementById('btn-confirmar-cobro');
+    if(suma === pedidoEnCobro.total && suma > 0){
+      aviso.textContent = '';
+      btn.disabled = false;
+    } else {
+      aviso.textContent = `La suma debe dar ${fmt(pedidoEnCobro.total)} (llevas ${fmt(suma)})`;
+      btn.disabled = true;
+    }
+  }
+
+  function confirmarCobro(){
+    if(!pedidoEnCobro || !pedidoEnCobro.metodo) return;
+    const c = comandas.find(x=>x.id===pedidoEnCobro.id);
+    if(!c) return;
+    const detallePago = pedidoEnCobro.metodo === 'mixto'
+      ? { efectivo: Number(document.getElementById('mixto-efectivo').value)||0, nequi: Number(document.getElementById('mixto-nequi').value)||0 }
+      : null;
+    db.ref('ventas/'+c.id).set({
+      mesa: c.mesa,
+      items: c.items,
+      total: c.total,
+      tomadoPor: c.tomadoPor || null,
+      creada: c.creada,
+      listaEn: c.listaEn || null,
+      cerrada: firebase.database.ServerValue.TIMESTAMP,
+      metodoPago: pedidoEnCobro.metodo,
+      detallePago,
+    });
+    db.ref('comandas/'+c.id).remove();
+    cerrarCobro();
+    mostrarToast('Cobro registrado ✅');
   }
 
   // ---------------------------------------------------------
