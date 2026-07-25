@@ -18,6 +18,7 @@
     --accent-achiote:#C1401C;
     --fresh:#4C7A3D;
     --warn:#A8681A;
+    --nequi:#8B5FBF;
     --text:#3D2314;
     --text-muted:#8B6F52;
     --border:#E0C89C;
@@ -375,6 +376,41 @@
   .kitchen-sec-label.lista{color:var(--accent-mango-ink);}
   .kitchen-esperando{text-align:center;font-size:12.5px;color:var(--text-muted);font-style:italic;padding:8px 0 2px;}
 
+  /* ---------- Historial (solo admin) ---------- */
+  .period-bar{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 4px;margin-bottom:14px;scrollbar-width:none;}
+  .period-bar::-webkit-scrollbar{display:none;}
+  .period-pill{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;}
+  .period-pill.activa{background:var(--accent-achiote);color:#fff;border-color:var(--accent-achiote);}
+  .hist-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+  .hist-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 6px;text-align:center;}
+  .hist-stat .num{font-family:'Pacifico',cursive;font-size:18px;color:var(--text);display:block;}
+  .hist-stat .lbl{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;font-weight:700;}
+  .hist-stat.efectivo .num{color:var(--fresh);}
+  .hist-stat.nequi .num{color:var(--nequi);}
+  .hist-tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .hist-tab-btn{flex:1;padding:11px 6px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-size:12.5px;cursor:pointer;text-align:center;}
+  .hist-tab-btn.activa{border-color:var(--accent-achiote);background:rgba(193,64,28,.1);color:var(--accent-achiote);}
+  .hist-subtabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;scrollbar-width:none;}
+  .hist-subtabs::-webkit-scrollbar{display:none;}
+  .hist-subtab-btn{flex:0 0 auto;padding:8px 13px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .hist-subtab-btn.activa{background:var(--accent-mango);color:var(--accent-mango-ink);border-color:var(--accent-mango);}
+  .hist-venta{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;}
+  .hist-venta-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .hist-venta-mesa{font-weight:800;font-size:14.5px;}
+  .hist-venta-fecha{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+  .hist-venta-items{font-size:12.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;}
+  .hist-venta-footer{display:flex;justify-content:space-between;align-items:center;}
+  .hist-metodo-badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;}
+  .hist-metodo-badge.efectivo{background:rgba(76,122,61,.15);color:var(--fresh);}
+  .hist-metodo-badge.nequi{background:rgba(139,95,191,.15);color:var(--nequi);}
+  .hist-metodo-badge.mixto{background:rgba(232,169,58,.2);color:var(--accent-mango-ink);}
+  .hist-venta-total{font-weight:800;font-size:15px;}
+  .btn-eliminar-venta{background:none;border:none;color:var(--text-muted);font-size:14px;cursor:pointer;padding:4px;}
+  .resumen-item-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
+  .resumen-item-row .n{font-weight:700;font-size:14px;}
+  .resumen-item-row .qty{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .resumen-item-row .tot{font-weight:800;color:var(--fresh);font-size:14px;}
+
   /* ---------- Empleados (solo admin) ---------- */
   .form-empleado{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
   .form-empleado input{flex:1;min-width:100px;padding:10px 12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;}
@@ -581,6 +617,7 @@
     <button class="tab-btn" data-vista="kitchen" onclick="cambiarVista('kitchen')">
       Cocina <span class="tab-badge" id="badge-kitchen">0</span>
     </button>
+    <button class="tab-btn" data-vista="historial" onclick="cambiarVista('historial')" style="display:none;">Historial</button>
     <button class="tab-btn" data-vista="empleados" onclick="cambiarVista('empleados')" style="display:none;">Empleados</button>
   </nav>
 
@@ -595,6 +632,11 @@
     <section id="vista-kitchen" class="vista">
       <span class="section-title">Cocina</span>
       <div id="grid-kitchen"></div>
+    </section>
+
+    <!-- VISTA: HISTORIAL (solo admin) -->
+    <section id="vista-historial" class="vista">
+      <div id="grid-historial"></div>
     </section>
 
     <!-- VISTA: EMPLEADOS (solo admin) -->
@@ -822,6 +864,11 @@
   let idsConocidosCocina = new Set(); // para detectar cuáles comandas son nuevas y sonar la alerta
   let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
   let pedidoEnCobro = null;           // {id, total, mesa, metodo} — pedido que se está cobrando, o null
+  let ventas = [];                    // ventas cerradas, sincronizadas en vivo desde Firebase
+  let histPeriodo = 'hoy';            // 'hoy'|'ayer'|'semana'|'mes'|'7dias'|'30dias'|'90dias'
+  let histTab = 'lista';              // 'lista'|'resumen'
+  let histSubTab = 'todos';           // 'todos'|'efectivo'|'nequi'|'mixto'
+  const PERIODOS = [['hoy','Hoy'],['ayer','Ayer'],['semana','Semana'],['mes','Este mes'],['7dias','7 días'],['30dias','30 días'],['90dias','90 días']];
 
   const fmt = (n) => "$" + n.toLocaleString('es-CO');
 
@@ -881,9 +928,13 @@
       ? 'Admin'
       : ('Empleado' + (empleadoActual ? ': ' + empleadoActual.nombre : ''));
     document.querySelector('[data-vista="empleados"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
+    document.querySelector('[data-vista="historial"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     iniciarListenerConexion();
     iniciarListenerComandas();
-    if(rolActual === 'admin') iniciarListenerEmpleados();
+    if(rolActual === 'admin'){
+      iniciarListenerEmpleados();
+      iniciarListenerVentas();
+    }
     renderCategorias();
     renderItems();
     renderResumen();
@@ -899,14 +950,16 @@
   // NAVEGACIÓN
   // ---------------------------------------------------------
   function cambiarVista(v){
-    if(v === 'empleados' && rolActual !== 'admin') return;
+    if((v === 'empleados' || v === 'historial') && rolActual !== 'admin') return;
     vistaActual = v;
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
     document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
     document.getElementById('vista-kitchen').classList.toggle('activa', v==='kitchen');
+    document.getElementById('vista-historial').classList.toggle('activa', v==='historial');
     document.getElementById('vista-empleados').classList.toggle('activa', v==='empleados');
     if(v==='cocina') renderCocina();
     if(v==='kitchen') renderKitchen();
+    if(v==='historial') renderHistorial();
     if(v==='empleados') renderEmpleadosView();
   }
 
@@ -1545,6 +1598,231 @@
     db.ref('comandas/'+c.id).remove();
     cerrarCobro();
     mostrarToast('Cobro registrado ✅');
+  }
+
+  // ---------------------------------------------------------
+  // HISTORIAL (solo admin)
+  // ---------------------------------------------------------
+  function iniciarListenerVentas(){
+    db.ref('ventas').on('value', snap=>{
+      ventas = [];
+      snap.forEach(child=>{
+        const v = child.val();
+        ventas.push({
+          id: child.key, mesa: v.mesa, items: v.items||[], total: v.total||0,
+          tomadoPor: v.tomadoPor, creada: v.creada, listaEn: v.listaEn,
+          cerrada: v.cerrada || v.creada, metodoPago: v.metodoPago, detallePago: v.detallePago || null,
+        });
+      });
+      if(vistaActual === 'historial') renderHistorial();
+    });
+  }
+
+  function enPeriodo(ts){
+    if(!ts) return false;
+    const ahora = new Date();
+    const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+    const diaSemana = (ahora.getDay()+6) % 7; // lunes=0
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate()-diaSemana);
+    const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    const fd = new Date(ts);
+    if(histPeriodo==='hoy')    return fd >= hoy;
+    if(histPeriodo==='ayer')   return fd >= ayer && fd < hoy;
+    if(histPeriodo==='semana') return fd >= lunes;
+    if(histPeriodo==='mes')    return fd >= primerDiaMes;
+    if(histPeriodo==='7dias')  return fd >= new Date(ahora - 7*864e5);
+    if(histPeriodo==='30dias') return fd >= new Date(ahora - 30*864e5);
+    if(histPeriodo==='90dias') return fd >= new Date(ahora - 90*864e5);
+    return true;
+  }
+
+  function fmtFechaHora(ts){
+    if(!ts) return '';
+    return new Date(ts).toLocaleString('es-CO', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }
+
+  function metodoLabelVenta(v){
+    if(v.metodoPago === 'mixto'){
+      const efvo = (v.detallePago && v.detallePago.efectivo) || 0;
+      const neq = (v.detallePago && v.detallePago.nequi) || 0;
+      return `Mixto (Efvo ${fmt(efvo)} + Nequi ${fmt(neq)})`;
+    }
+    return v.metodoPago === 'nequi' ? 'Nequi' : 'Efectivo';
+  }
+
+  function setHistPeriodo(p){ histPeriodo = p; renderHistorial(); }
+  function setHistTab(t){ histTab = t; renderHistorial(); }
+  function setHistSubTab(s){ histSubTab = s; renderHistorial(); }
+
+  function renderHistorial(){
+    const cont = document.getElementById('grid-historial');
+    const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada));
+
+    const periodoHTML = `<div class="period-bar">
+      ${PERIODOS.map(([k,label])=>`<button class="period-pill ${histPeriodo===k?'activa':''}" onclick="setHistPeriodo('${k}')">${label}</button>`).join('')}
+    </div>`;
+
+    const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
+    const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
+    const totalGeneral = delPeriodo.reduce((s,v)=>s+v.total, 0);
+
+    const statsHTML = `<div class="hist-stats">
+      <div class="hist-stat efectivo"><span class="num">${fmt(totalEfectivo)}</span><span class="lbl">💵 Efectivo</span></div>
+      <div class="hist-stat nequi"><span class="num">${fmt(totalNequi)}</span><span class="lbl">📱 Nequi</span></div>
+      <div class="hist-stat"><span class="num">${fmt(totalGeneral)}</span><span class="lbl">📦 Total</span></div>
+    </div>`;
+
+    const tabsHTML = `<div class="hist-tabs">
+      <button class="hist-tab-btn ${histTab==='lista'?'activa':''}" onclick="setHistTab('lista')">📋 Lista</button>
+      <button class="hist-tab-btn ${histTab==='resumen'?'activa':''}" onclick="setHistTab('resumen')">📊 Resumen</button>
+      <button class="hist-tab-btn" onclick="exportarHistorialPDF()">📄 PDF</button>
+    </div>`;
+
+    if(histTab === 'resumen'){
+      const mapa = {};
+      delPeriodo.forEach(v => v.items.forEach(i=>{
+        if(!mapa[i.n]) mapa[i.n] = {n:i.n, qty:0, total:0};
+        mapa[i.n].qty += i.qty;
+        mapa[i.n].total += i.p * i.qty;
+      }));
+      const ordenado = Object.values(mapa).sort((a,b)=>b.qty-a.qty);
+      const resumenHTML = ordenado.length === 0
+        ? '<p class="vacio-msg">Sin ventas en este período.</p>'
+        : ordenado.map(i=>`
+          <div class="resumen-item-row">
+            <div><div class="n">${i.n}</div><div class="qty">${i.qty} vendidos</div></div>
+            <div class="tot">${fmt(i.total)}</div>
+          </div>`).join('');
+      cont.innerHTML = periodoHTML + statsHTML + tabsHTML + resumenHTML;
+      return;
+    }
+
+    const subtabsHTML = `<div class="hist-subtabs">
+      <button class="hist-subtab-btn ${histSubTab==='todos'?'activa':''}" onclick="setHistSubTab('todos')">Todos</button>
+      <button class="hist-subtab-btn ${histSubTab==='efectivo'?'activa':''}" onclick="setHistSubTab('efectivo')">💵 Efectivo</button>
+      <button class="hist-subtab-btn ${histSubTab==='nequi'?'activa':''}" onclick="setHistSubTab('nequi')">📱 Nequi</button>
+      <button class="hist-subtab-btn ${histSubTab==='mixto'?'activa':''}" onclick="setHistSubTab('mixto')">🔀 Mixto</button>
+    </div>`;
+
+    const filtradas = histSubTab === 'todos' ? delPeriodo : delPeriodo.filter(v=>v.metodoPago===histSubTab);
+    const ordenadas = [...filtradas].sort((a,b)=>(b.cerrada||0)-(a.cerrada||0));
+
+    const listaHTML = ordenadas.length === 0
+      ? '<p class="vacio-msg">Sin ventas en este período.</p>'
+      : ordenadas.map(v=>`
+        <div class="hist-venta">
+          <div class="hist-venta-top">
+            <div>
+              <div class="hist-venta-mesa">${v.mesa}</div>
+              <div class="hist-venta-fecha">${fmtFechaHora(v.cerrada)}${v.tomadoPor ? ' · ' + v.tomadoPor : ''}</div>
+            </div>
+            <button class="btn-eliminar-venta" onclick="eliminarVenta('${v.id}')">🗑</button>
+          </div>
+          <div class="hist-venta-items">${v.items.map(i=>`${i.qty}× ${i.n}${i.nota?` (${i.nota})`:''}`).join(', ')}</div>
+          <div class="hist-venta-footer">
+            <span class="hist-metodo-badge ${v.metodoPago}">${metodoLabelVenta(v)}</span>
+            <span class="hist-venta-total">${fmt(v.total)}</span>
+          </div>
+        </div>`).join('');
+
+    cont.innerHTML = periodoHTML + statsHTML + tabsHTML + subtabsHTML + listaHTML;
+  }
+
+  function eliminarVenta(id){
+    if(!confirm('¿Eliminar esta venta del historial? No se puede deshacer.')) return;
+    db.ref('ventas/'+id).remove();
+    mostrarToast('Venta eliminada del historial');
+  }
+
+  function exportarHistorialPDF(){
+    const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada));
+    const periodoLabel = (PERIODOS.find(p=>p[0]===histPeriodo) || ['','?'])[1];
+
+    const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
+    const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
+    const totalGeneral = delPeriodo.reduce((s,v)=>s+v.total, 0);
+
+    const mapa = {};
+    delPeriodo.forEach(v => v.items.forEach(i=>{
+      if(!mapa[i.n]) mapa[i.n] = {n:i.n, qty:0, total:0};
+      mapa[i.n].qty += i.qty;
+      mapa[i.n].total += i.p * i.qty;
+    }));
+    const resumen = Object.values(mapa).sort((a,b)=>b.qty-a.qty);
+    const ordenadas = [...delPeriodo].sort((a,b)=>(b.cerrada||0)-(a.cerrada||0));
+    const fechaImpresion = new Date().toLocaleString('es-CO', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Historial · Típico Mojanero · ${periodoLabel}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#2A1A0F;font-size:13px;padding:24px;}
+  h1{font-size:22px;font-weight:900;letter-spacing:1px;color:#C1401C;margin-bottom:2px;}
+  .sub{font-size:12px;color:#888;margin-bottom:18px;}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+  .stat{background:#F7ECD3;border-radius:8px;padding:12px;text-align:center;}
+  .stat-val{font-size:18px;font-weight:900;}
+  .stat-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-top:3px;}
+  h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#555;margin:18px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;}
+  table{width:100%;border-collapse:collapse;margin-bottom:18px;}
+  th{background:#F0E0C4;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666;}
+  td{padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:12px;}
+  tr:last-child td{border-bottom:none;}
+  .num{text-align:right;font-weight:700;}
+  .badge{border-radius:4px;padding:2px 7px;font-size:10px;font-weight:800;}
+  .efe{background:#e8f4e6;color:#4C7A3D;}
+  .neq{background:#efe6f7;color:#8B5FBF;}
+  .mix{background:#fbf1de;color:#A8681A;}
+  .footer{margin-top:24px;font-size:10px;color:#bbb;text-align:center;border-top:1px solid #eee;padding-top:12px;}
+  @media print{body{padding:0;} button{display:none;}}
+</style>
+</head>
+<body>
+<h1>TÍPICO MOJANERO</h1>
+<div class="sub">Restaurante · Sucre, Colombia &nbsp;|&nbsp; Período: <b>${periodoLabel}</b> &nbsp;|&nbsp; Impreso: ${fechaImpresion}</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val" style="color:#4C7A3D">${fmt(totalEfectivo)}</div><div class="stat-lbl">💵 Efectivo</div></div>
+  <div class="stat"><div class="stat-val" style="color:#8B5FBF">${fmt(totalNequi)}</div><div class="stat-lbl">📱 Nequi</div></div>
+  <div class="stat"><div class="stat-val" style="color:#2A1A0F">${fmt(totalGeneral)}</div><div class="stat-lbl">📦 Total</div></div>
+</div>
+
+<h2>📊 Resumen por producto</h2>
+<table>
+  <tr><th>Producto</th><th class="num">Cant.</th><th class="num">Total</th></tr>
+  ${resumen.map(i=>`<tr><td>${i.n}</td><td class="num">${i.qty}</td><td class="num">${fmt(i.total)}</td></tr>`).join('')}
+</table>
+
+<h2>📋 Lista de ventas (${ordenadas.length})</h2>
+<table>
+  <tr><th>Fecha</th><th>Mesa</th><th>Items</th><th>Pago</th><th class="num">Total</th></tr>
+  ${ordenadas.map(v=>{
+    const metodo = v.metodoPago==='nequi'?'neq':v.metodoPago==='mixto'?'mix':'efe';
+    const label = v.metodoPago==='mixto' ? 'Mixto' : v.metodoPago==='nequi' ? 'Nequi' : 'Efectivo';
+    const items = v.items.map(i=>`${i.qty}×${i.n}`).join(', ');
+    return `<tr>
+      <td>${fmtFechaHora(v.cerrada)}</td>
+      <td>${v.mesa}</td>
+      <td style="font-size:11px;color:#555">${items}</td>
+      <td><span class="badge ${metodo}">${label}</span></td>
+      <td class="num">${fmt(v.total)}</td>
+    </tr>`;
+  }).join('')}
+</table>
+
+<div class="footer">Típico Mojanero · Generado automáticamente · ${fechaImpresion}</div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=800,height=600');
+    if(!win){ alert('Activa las ventanas emergentes para exportar el PDF'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
   }
 
   // ---------------------------------------------------------
