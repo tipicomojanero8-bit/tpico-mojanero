@@ -370,6 +370,11 @@
   }
   .cocina-vacia .emoji{font-size:34px;display:block;margin-bottom:10px;}
 
+  .kitchen-sec-label{font-size:13px;font-weight:800;margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px;}
+  .kitchen-sec-label.prep{color:var(--accent-achiote);}
+  .kitchen-sec-label.lista{color:var(--accent-mango-ink);}
+  .kitchen-esperando{text-align:center;font-size:12.5px;color:var(--text-muted);font-style:italic;padding:8px 0 2px;}
+
   /* ---------- Empleados (solo admin) ---------- */
   .form-empleado{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
   .form-empleado input{flex:1;min-width:100px;padding:10px 12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;}
@@ -571,16 +576,25 @@
 
   <nav class="tabs">
     <button class="tab-btn activo" data-vista="cocina" onclick="cambiarVista('cocina')">
-      Cocina <span class="tab-badge" id="badge-cocina">0</span>
+      Pedidos <span class="tab-badge" id="badge-cocina">0</span>
+    </button>
+    <button class="tab-btn" data-vista="kitchen" onclick="cambiarVista('kitchen')">
+      Cocina <span class="tab-badge" id="badge-kitchen">0</span>
     </button>
     <button class="tab-btn" data-vista="empleados" onclick="cambiarVista('empleados')" style="display:none;">Empleados</button>
   </nav>
 
   <main>
-    <!-- VISTA: COCINA -->
+    <!-- VISTA: PEDIDOS (vista completa: precios, editar, cancelar, cobrar) -->
     <section id="vista-cocina" class="vista activa">
-      <span class="section-title">Comandas activas</span>
+      <span class="section-title">Pedidos activos</span>
       <div class="cocina-grid" id="grid-cocina"></div>
+    </section>
+
+    <!-- VISTA: COCINA (vista simple para el cocinero: sin precios ni acciones de cobro) -->
+    <section id="vista-kitchen" class="vista">
+      <span class="section-title">Cocina</span>
+      <div id="grid-kitchen"></div>
     </section>
 
     <!-- VISTA: EMPLEADOS (solo admin) -->
@@ -874,6 +888,7 @@
     renderItems();
     renderResumen();
     renderCocina();
+    renderKitchen();
   }
 
   function salir(){
@@ -888,8 +903,10 @@
     vistaActual = v;
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
     document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
+    document.getElementById('vista-kitchen').classList.toggle('activa', v==='kitchen');
     document.getElementById('vista-empleados').classList.toggle('activa', v==='empleados');
     if(v==='cocina') renderCocina();
+    if(v==='kitchen') renderKitchen();
     if(v==='empleados') renderEmpleadosView();
   }
 
@@ -1118,12 +1135,13 @@
       if(!primeraCargaComandas){
         let hayNuevas = false;
         idsActuales.forEach(id=>{ if(!idsConocidosCocina.has(id)) hayNuevas = true; });
-        if(hayNuevas && vistaActual === 'cocina') sonarAlertaCocina();
+        if(hayNuevas && vistaActual === 'kitchen') sonarAlertaCocina();
       }
       idsConocidosCocina = idsActuales;
       primeraCargaComandas = false;
       actualizarBadge();
       if(vistaActual === 'cocina') renderCocina();
+      if(vistaActual === 'kitchen') renderKitchen();
     });
   }
 
@@ -1197,6 +1215,57 @@
     }).join('');
   }
 
+  // ---------------------------------------------------------
+  // VISTA COCINA (simple, para el cocinero — sin precios,
+  // sin editar/cancelar/cobrar. Solo qué preparar y marcar listo.)
+  // ---------------------------------------------------------
+  function renderKitchen(){
+    const cont = document.getElementById('grid-kitchen');
+    const preparando = comandas.filter(c => c.estado !== 'lista');
+    const listas = comandas.filter(c => c.estado === 'lista');
+    if(preparando.length === 0 && listas.length === 0){
+      cont.innerHTML = `<div class="cocina-vacia">
+        <span class="emoji">👨‍🍳</span>
+        Sin pedidos en cocina por ahora.
+      </div>`;
+      return;
+    }
+    const tarjetaKitchen = (c, esLista) => {
+      const min = esLista ? minutosDesde(c.listaEn || c.creada) : minutosDesde(c.creada);
+      const nivel = esLista ? 'lista-cobro' : nivelUrgencia(min);
+      const esPendiente = !!pendientes[c.id];
+      return `
+      <div class="ticket ${nivel}">
+        <div class="ticket-top">
+          <span class="ticket-mesa">${c.mesa}</span>
+          <span class="ticket-tiempo">${esPendiente ? '🔌 sincronizando…' : (esLista ? '✅ lista hace ' + min + ' min' : 'hace ' + min + ' min')}</span>
+        </div>
+        ${c.tomadoPor ? `<div class="ticket-empleado">Tomó: ${c.tomadoPor}</div>` : ''}
+        ${c.editada ? `
+          <div class="ticket-editado">
+            <div class="ticket-editado-titulo">✏️ Pedido modificado</div>
+            <ul class="ticket-diff">
+              ${calcularDiff(c.itemsAnterior, c.items).map(cambio=>`<li>${cambio}</li>`).join('')}
+            </ul>
+            <button class="btn-visto" onclick="marcarVisto('${c.id}')">👁 Visto</button>
+          </div>
+        ` : ''}
+        <ul class="ticket-items">
+          ${c.items.map(i=>`<li><span class="cant">${i.qty}×</span> ${i.n}${i.nota ? ` <span class="nota-item">— ${i.nota}</span>` : ''}</li>`).join('')}
+        </ul>
+        ${esLista
+          ? `<div class="kitchen-esperando">Esperando cobro</div>`
+          : `<button class="btn-listo" onclick="marcarLista('${c.id}')">✅ Marcar lista</button>`
+        }
+      </div>`;
+    };
+    const ordenar = arr => [...arr].sort((a,b)=>a.creada-b.creada);
+    cont.innerHTML = `
+      ${preparando.length ? `<div class="kitchen-sec-label prep">🔴 Preparando (${preparando.length})</div><div class="cocina-grid">${ordenar(preparando).map(c=>tarjetaKitchen(c,false)).join('')}</div>` : ''}
+      ${listas.length ? `<div class="kitchen-sec-label lista">🟡 Listas para servir (${listas.length})</div><div class="cocina-grid">${ordenar(listas).map(c=>tarjetaKitchen(c,true)).join('')}</div>` : ''}
+    `;
+  }
+
   function marcarLista(id){
     db.ref('comandas/'+id).update({estado:'lista', listaEn: firebase.database.ServerValue.TIMESTAMP});
     mostrarToast('Pedido listo — falta cobrar 💰');
@@ -1225,10 +1294,14 @@
 
   function actualizarBadge(){
     document.getElementById('badge-cocina').textContent = comandas.length;
+    document.getElementById('badge-kitchen').textContent = comandas.filter(c=>c.estado!=='lista').length;
   }
 
   // Refresca los tiempos/urgencia visualmente cada 20s (los datos ya llegan en vivo)
-  setInterval(()=>{ if(vistaActual==='cocina') renderCocina(); }, 20000);
+  setInterval(()=>{
+    if(vistaActual==='cocina') renderCocina();
+    if(vistaActual==='kitchen') renderKitchen();
+  }, 20000);
 
   // ---------------------------------------------------------
   // VISTA EMPLEADOS (solo admin)
