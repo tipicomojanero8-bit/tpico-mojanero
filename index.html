@@ -421,6 +421,22 @@
   .empleado-row .pin{color:var(--text-muted);font-size:12.5px;font-family:monospace;letter-spacing:2px;}
   .btn-eliminar{background:none;border:1px solid var(--border);color:var(--accent-achiote);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;flex:0 0 auto;}
 
+  /* ---------- Cargando (revisando sesión guardada) ---------- */
+  .pantalla-cargando{
+    position:fixed;inset:0;z-index:200;
+    background:var(--bg-deep);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;
+  }
+  .cargando-spinner{
+    width:38px;height:38px;
+    border:4px solid var(--border);
+    border-top-color:var(--accent-achiote);
+    border-radius:50%;
+    animation:girar-cargando .8s linear infinite;
+  }
+  @keyframes girar-cargando{to{transform:rotate(360deg);}}
+
   /* ---------- Login ---------- */
   .login-overlay{
     position:fixed;inset:0;z-index:100;
@@ -574,8 +590,13 @@
 </head>
 <body>
 
+<!-- ============ CARGANDO (revisando si el dispositivo ya tenía sesión) ============ -->
+<div class="pantalla-cargando" id="pantalla-cargando">
+  <div class="cargando-spinner"></div>
+</div>
+
 <!-- ============ LOGIN ============ -->
-<div class="login-overlay" id="pantalla-login">
+<div class="login-overlay" id="pantalla-login" style="display:none;">
   <div class="login-card">
     <h1 class="brand">Típico <em>Mojanero</em></h1>
     <p class="tagline">Comanda digital</p>
@@ -857,6 +878,7 @@
   let vistaActual = 'cocina';
   let rolActual = null;       // 'admin' | 'empleado'
   let empleadoActual = null;  // {id, nombre}
+  let appYaIniciada = false;  // evita registrar los listeners dos veces si onAuthStateChanged y el login manual coinciden
   let conectado = true;       // estado de conexión con Firebase
   let pendientes = {};        // ids de comandas creadas sin conexión, aún sin confirmar por el servidor
   let edicionActual = null;   // {id, items:{clave:{n,p,qty,nota,cat}}} — pedido que se está editando, o null
@@ -898,6 +920,9 @@
         if(String(e.pin) === pin) encontrado = {id:child.key, nombre:e.nombre};
       });
       if(encontrado){
+        // Vinculamos este dispositivo (uid anónimo) a este empleado, de forma
+        // durable, para que la próxima vez entre directo sin pedir PIN.
+        db.ref('sesionesPin/' + auth.currentUser.uid).set({empleadoId:encontrado.id, nombre:encontrado.nombre});
         rolActual = 'empleado';
         empleadoActual = encontrado;
         entrarApp();
@@ -905,7 +930,13 @@
         mostrarErrorLogin('PIN incorrecto');
         auth.signOut();
       }
-    }).catch(err=>mostrarErrorLogin('Error: ' + err.message));
+    }).catch(err=>{
+      if(err.code === 'auth/operation-not-allowed'){
+        mostrarErrorLogin('Falta activar "Anónimo" en Firebase Authentication (avísale a Jose)');
+      } else {
+        mostrarErrorLogin('Error: ' + err.message);
+      }
+    });
   }
 
   function loginAdmin(){
@@ -922,6 +953,9 @@
   }
 
   function entrarApp(){
+    if(appYaIniciada) return;
+    appYaIniciada = true;
+    document.getElementById('pantalla-cargando').style.display = 'none';
     document.getElementById('pantalla-login').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('rol-badge').textContent = rolActual === 'admin'
@@ -943,7 +977,14 @@
   }
 
   function salir(){
-    auth.signOut().then(()=>location.reload());
+    const user = auth.currentUser;
+    if(user && user.isAnonymous){
+      db.ref('sesionesPin/' + user.uid).remove().finally(()=>{
+        auth.signOut().then(()=>location.reload());
+      });
+    } else {
+      auth.signOut().then(()=>location.reload());
+    }
   }
 
   // ---------------------------------------------------------
@@ -1836,6 +1877,49 @@
     clearTimeout(toastTimeout);
     toastTimeout = setTimeout(()=>t.classList.remove('mostrar'), 1800);
   }
+
+  // ---------------------------------------------------------
+  // SESIÓN PERSISTENTE
+  // Si este dispositivo ya había iniciado sesión antes (admin o
+  // empleado), entra directo sin pedir contraseña/PIN de nuevo.
+  // Firebase Auth ya recuerda la sesión solo; acá decidimos a
+  // dónde entrar según de quién era esa sesión.
+  // ---------------------------------------------------------
+  auth.onAuthStateChanged(user => {
+    const cargando = document.getElementById('pantalla-cargando');
+    if(!user){
+      if(cargando) cargando.style.display = 'none';
+      if(!appYaIniciada) document.getElementById('pantalla-login').style.display = 'flex';
+      return;
+    }
+    if(rolActual || appYaIniciada){
+      if(cargando) cargando.style.display = 'none';
+      return;
+    }
+    if(user.isAnonymous){
+      db.ref('sesionesPin/' + user.uid).once('value').then(snap=>{
+        const datos = snap.val();
+        if(cargando) cargando.style.display = 'none';
+        if(datos && !rolActual && !appYaIniciada){
+          rolActual = 'empleado';
+          empleadoActual = { id: datos.empleadoId, nombre: datos.nombre };
+          entrarApp();
+        } else if(!datos){
+          document.getElementById('pantalla-login').style.display = 'flex';
+        }
+      }).catch(()=>{
+        if(cargando) cargando.style.display = 'none';
+        document.getElementById('pantalla-login').style.display = 'flex';
+      });
+    } else {
+      if(cargando) cargando.style.display = 'none';
+      if(!rolActual && !appYaIniciada){
+        rolActual = 'admin';
+        empleadoActual = null;
+        entrarApp();
+      }
+    }
+  });
 </script>
 </body>
 </html>
