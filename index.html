@@ -78,7 +78,10 @@
     top:0;
     background:var(--bg-deep);
     z-index:20;
+    overflow-x:auto;
+    scrollbar-width:none;
   }
+  nav.tabs::-webkit-scrollbar{display:none;}
   .tab-btn{
     flex:1;
     padding:12px 10px;
@@ -446,6 +449,24 @@
   .modal-input{width:100%;margin-bottom:14px;padding:12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:15px;}
   .modal-input::placeholder{color:var(--text-muted);opacity:.7;}
 
+  /* ---------- Finanzas y reportes (solo admin) ---------- */
+  .fin-balance{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:22px 18px;margin-bottom:14px;text-align:center;}
+  .fin-balance-label{font-weight:800;font-size:12.5px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
+  .fin-balance-val{font-family:'Pacifico',cursive;font-size:38px;margin-top:6px;}
+  .fin-balance-sub{font-size:12px;color:var(--text-muted);margin-top:6px;}
+  .fin-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+  .fin-card.efectivo{border-left-color:var(--fresh);}
+  .fin-card.nequi{border-left-color:var(--nequi);}
+  .fin-card.transferencia{border-left-color:var(--warn);}
+  .fin-card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .fin-card-icon{font-size:18px;}
+  .fin-card-title{font-weight:800;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);}
+  .fin-card-val{font-family:'Pacifico',cursive;font-size:26px;}
+  .fin-card-breakdown{margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:5px;}
+  .fin-card-sub{font-size:11.5px;color:var(--text-muted);margin-top:8px;line-height:1.4;}
+  .fin-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-muted);}
+  .fin-row span:last-child{font-weight:800;color:var(--text);}
+
   /* ---------- Cargando (revisando sesión guardada) ---------- */
   .pantalla-cargando{
     position:fixed;inset:0;z-index:200;
@@ -665,6 +686,7 @@
     </button>
     <button class="tab-btn" data-vista="historial" onclick="cambiarVista('historial')" style="display:none;">Historial</button>
     <button class="tab-btn" data-vista="gastos" onclick="cambiarVista('gastos')" style="display:none;">Gastos</button>
+    <button class="tab-btn" data-vista="finanzas" onclick="cambiarVista('finanzas')" style="display:none;">Finanzas</button>
     <button class="tab-btn" data-vista="empleados" onclick="cambiarVista('empleados')" style="display:none;">Empleados</button>
   </nav>
 
@@ -689,6 +711,11 @@
     <!-- VISTA: GASTOS OPERACIONALES (solo admin) -->
     <section id="vista-gastos" class="vista">
       <div id="grid-gastos"></div>
+    </section>
+
+    <!-- VISTA: FINANZAS Y REPORTES (solo admin) -->
+    <section id="vista-finanzas" class="vista">
+      <div id="grid-finanzas"></div>
     </section>
 
     <!-- VISTA: EMPLEADOS (solo admin) -->
@@ -954,6 +981,9 @@
   let gastoPeriodo = 'hoy';           // mismo set de períodos que histPeriodo, pero con filtro independiente
   let gastoFecha = null;              // 'YYYY-MM-DD' cuando gastoPeriodo==='fecha'
   let metodoGastoSeleccionado = null; // método elegido en el modal de nuevo gasto
+  let finPeriodo = 'siempre';         // igual a PERIODOS + 'siempre' (todo el historial)
+  let finFecha = null;                // 'YYYY-MM-DD' cuando finPeriodo==='fecha'
+  const FIN_PERIODOS = [...PERIODOS, ['siempre','Todo']];
 
   const fmt = (n) => "$" + n.toLocaleString('es-CO');
 
@@ -1027,6 +1057,7 @@
     document.querySelector('[data-vista="empleados"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     document.querySelector('[data-vista="historial"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     document.querySelector('[data-vista="gastos"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
+    document.querySelector('[data-vista="finanzas"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     iniciarListenerConexion();
     iniciarListenerComandas();
     if(rolActual === 'admin'){
@@ -1056,18 +1087,20 @@
   // NAVEGACIÓN
   // ---------------------------------------------------------
   function cambiarVista(v){
-    if((v === 'empleados' || v === 'historial' || v === 'gastos') && rolActual !== 'admin') return;
+    if((v === 'empleados' || v === 'historial' || v === 'gastos' || v === 'finanzas') && rolActual !== 'admin') return;
     vistaActual = v;
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
     document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
     document.getElementById('vista-kitchen').classList.toggle('activa', v==='kitchen');
     document.getElementById('vista-historial').classList.toggle('activa', v==='historial');
     document.getElementById('vista-gastos').classList.toggle('activa', v==='gastos');
+    document.getElementById('vista-finanzas').classList.toggle('activa', v==='finanzas');
     document.getElementById('vista-empleados').classList.toggle('activa', v==='empleados');
     if(v==='cocina') renderCocina();
     if(v==='kitchen') renderKitchen();
     if(v==='historial') renderHistorial();
     if(v==='gastos') renderGastos();
+    if(v==='finanzas') renderFinanzas();
     if(v==='empleados') renderEmpleadosView();
   }
 
@@ -1723,6 +1756,7 @@
         });
       });
       if(vistaActual === 'historial') renderHistorial();
+      if(vistaActual === 'finanzas') renderFinanzas();
     });
   }
 
@@ -1978,6 +2012,7 @@
         });
       });
       if(vistaActual === 'gastos') renderGastos();
+      if(vistaActual === 'finanzas') renderFinanzas();
     }, err=>{
       console.error('Error leyendo gastos:', err);
       mostrarToast('⚠️ Sin permiso para leer gastos (revisa reglas Firebase)');
@@ -2104,6 +2139,90 @@
     }).catch(err=>{
       alert('No se pudo eliminar el gasto:\n' + err.message);
     });
+  }
+
+  // ---------------------------------------------------------
+  // FINANZAS Y REPORTES (solo admin)
+  // Panel derivado: no tiene ruta propia en Firebase, solo lee
+  // los arreglos ya sincronizados de ventas y gastos.
+  // ---------------------------------------------------------
+  function setFinPeriodo(p){ finPeriodo = p; renderFinanzas(); }
+  function setFinFecha(v){ finFecha = v || null; finPeriodo = v ? 'fecha' : 'siempre'; renderFinanzas(); }
+
+  function renderFinanzas(){
+    const cont = document.getElementById('grid-finanzas');
+    if(!cont) return;
+
+    const ventasP = ventas.filter(v => enPeriodo(v.cerrada, finPeriodo, finFecha));
+    const gastosP = gastos.filter(g => enPeriodo(g.fecha, finPeriodo, finFecha));
+
+    let inEfectivo = 0, inNequi = 0;
+    ventasP.forEach(v=>{
+      if(v.metodoPago === 'efectivo') inEfectivo += v.total;
+      else if(v.metodoPago === 'nequi') inNequi += v.total;
+      else if(v.metodoPago === 'mixto' && v.detallePago){
+        inEfectivo += v.detallePago.efectivo || 0;
+        inNequi += v.detallePago.nequi || 0;
+      }
+    });
+    const totalIngresos = inEfectivo + inNequi;
+
+    const gastEfectivo = gastosP.filter(g=>g.metodo==='efectivo').reduce((s,g)=>s+g.monto,0);
+    const gastNequi = gastosP.filter(g=>g.metodo==='nequi').reduce((s,g)=>s+g.monto,0);
+    const gastTransferencia = gastosP.filter(g=>g.metodo==='transferencia').reduce((s,g)=>s+g.monto,0);
+    const totalGastos = gastEfectivo + gastNequi + gastTransferencia;
+
+    const dispEfectivo = inEfectivo - gastEfectivo;
+    const dispNequi = inNequi - gastNequi;
+    const gananciaNeta = totalIngresos - totalGastos;
+    const margen = totalIngresos > 0 ? ((gananciaNeta/totalIngresos)*100).toFixed(1) : '0.0';
+    const ticketProm = ventasP.length > 0 ? totalIngresos/ventasP.length : 0;
+
+    const periodoHTML = `<div class="period-bar">
+      ${FIN_PERIODOS.map(([k,label])=>`<button class="period-pill ${finPeriodo===k?'activa':''}" onclick="setFinPeriodo('${k}')">${label}</button>`).join('')}
+      <label class="period-pill period-pill-fecha ${finPeriodo==='fecha'?'activa':''}">
+        📅 <input type="date" max="${hoyISO()}" aria-label="Fecha específica" value="${finFecha||''}" onchange="setFinFecha(this.value)">
+      </label>
+    </div>`;
+
+    const balColor = gananciaNeta >= 0 ? 'var(--fresh)' : 'var(--accent-achiote)';
+    const balanceHTML = `<div class="fin-balance">
+      <div class="fin-balance-label">📊 Ganancia neta</div>
+      <div class="fin-balance-val" style="color:${balColor}">${fmt(Math.round(gananciaNeta))}</div>
+      <div class="fin-balance-sub">Ingresos ${fmt(Math.round(totalIngresos))} − Gastos ${fmt(Math.round(totalGastos))}</div>
+    </div>`;
+
+    const statsHTML = `<div class="hist-stats">
+      <div class="hist-stat"><span class="num">${ventasP.length}</span><span class="lbl">📦 Ventas</span></div>
+      <div class="hist-stat"><span class="num">${fmt(Math.round(ticketProm))}</span><span class="lbl">🎫 Ticket prom.</span></div>
+      <div class="hist-stat"><span class="num">${margen}%</span><span class="lbl">📈 Margen</span></div>
+    </div>`;
+
+    const efectivoHTML = `<div class="fin-card efectivo">
+      <div class="fin-card-header"><span class="fin-card-icon">💵</span><span class="fin-card-title">Efectivo disponible</span></div>
+      <div class="fin-card-val" style="color:${dispEfectivo>=0?'var(--fresh)':'var(--accent-achiote)'}">${fmt(Math.round(dispEfectivo))}</div>
+      <div class="fin-card-breakdown">
+        <div class="fin-row"><span>+ Cobrado en efectivo</span><span>${fmt(Math.round(inEfectivo))}</span></div>
+        <div class="fin-row"><span>− Gastos en efectivo</span><span>${fmt(Math.round(gastEfectivo))}</span></div>
+      </div>
+    </div>`;
+
+    const nequiHTML = `<div class="fin-card nequi">
+      <div class="fin-card-header"><span class="fin-card-icon">📱</span><span class="fin-card-title">Nequi disponible</span></div>
+      <div class="fin-card-val" style="color:${dispNequi>=0?'var(--fresh)':'var(--accent-achiote)'}">${fmt(Math.round(dispNequi))}</div>
+      <div class="fin-card-breakdown">
+        <div class="fin-row"><span>+ Cobrado por Nequi</span><span>${fmt(Math.round(inNequi))}</span></div>
+        <div class="fin-row"><span>− Gastos por Nequi</span><span>${fmt(Math.round(gastNequi))}</span></div>
+      </div>
+    </div>`;
+
+    const transferenciaHTML = gastTransferencia > 0 ? `<div class="fin-card transferencia">
+      <div class="fin-card-header"><span class="fin-card-icon">🏦</span><span class="fin-card-title">Gastos por transferencia</span></div>
+      <div class="fin-card-val" style="color:var(--warn)">${fmt(Math.round(gastTransferencia))}</div>
+      <div class="fin-card-sub">No sale de lo cobrado en el mostrador — normalmente es un pago hecho directo desde el banco.</div>
+    </div>` : '';
+
+    cont.innerHTML = periodoHTML + balanceHTML + statsHTML + efectivoHTML + nequiHTML + transferenciaHTML;
   }
 
   // ---------------------------------------------------------
