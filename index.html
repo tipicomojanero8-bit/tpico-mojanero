@@ -421,6 +421,27 @@
   .empleado-row .pin{color:var(--text-muted);font-size:12.5px;font-family:monospace;letter-spacing:2px;}
   .btn-eliminar{background:none;border:1px solid var(--border);color:var(--accent-achiote);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;flex:0 0 auto;}
 
+  /* ---------- Gastos operacionales (solo admin) ---------- */
+  .hist-stat.transferencia .num{color:var(--warn);}
+  .gastos-total-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+  .gastos-total-bar .lbl{font-size:12.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;}
+  .gastos-total-bar .val{font-family:'Pacifico',cursive;font-size:22px;color:var(--warn);}
+  .btn-add-gasto{width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:var(--warn);color:#fff;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .gasto-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .gasto-info{flex:1;}
+  .gasto-concepto{font-weight:800;font-size:14.5px;}
+  .gasto-nota{font-size:12px;color:var(--text-muted);margin-top:2px;font-style:italic;}
+  .gasto-fecha{font-size:11.5px;color:var(--text-muted);margin-top:4px;}
+  .gasto-metodo-badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;margin-top:6px;display:inline-block;}
+  .gasto-metodo-badge.efectivo{background:rgba(76,122,61,.15);color:var(--fresh);}
+  .gasto-metodo-badge.nequi{background:rgba(139,95,191,.15);color:var(--nequi);}
+  .gasto-metodo-badge.transferencia{background:rgba(168,104,26,.15);color:var(--warn);}
+  .gasto-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+  .gasto-monto{font-weight:800;font-size:16px;color:var(--warn);}
+  .btn-eliminar-gasto{background:none;border:none;color:var(--text-muted);font-size:14px;cursor:pointer;padding:4px;}
+  .modal-input{width:100%;margin-bottom:14px;padding:12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:15px;}
+  .modal-input::placeholder{color:var(--text-muted);opacity:.7;}
+
   /* ---------- Cargando (revisando sesión guardada) ---------- */
   .pantalla-cargando{
     position:fixed;inset:0;z-index:200;
@@ -639,6 +660,7 @@
       Cocina <span class="tab-badge" id="badge-kitchen">0</span>
     </button>
     <button class="tab-btn" data-vista="historial" onclick="cambiarVista('historial')" style="display:none;">Historial</button>
+    <button class="tab-btn" data-vista="gastos" onclick="cambiarVista('gastos')" style="display:none;">Gastos</button>
     <button class="tab-btn" data-vista="empleados" onclick="cambiarVista('empleados')" style="display:none;">Empleados</button>
   </nav>
 
@@ -658,6 +680,11 @@
     <!-- VISTA: HISTORIAL (solo admin) -->
     <section id="vista-historial" class="vista">
       <div id="grid-historial"></div>
+    </section>
+
+    <!-- VISTA: GASTOS OPERACIONALES (solo admin) -->
+    <section id="vista-gastos" class="vista">
+      <div id="grid-gastos"></div>
     </section>
 
     <!-- VISTA: EMPLEADOS (solo admin) -->
@@ -755,6 +782,33 @@
     </div>
     <div class="modal-footer">
       <button class="btn-enviar" id="btn-confirmar-cobro" onclick="confirmarCobro()" disabled>Confirmar cobro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REGISTRAR GASTO -->
+<div class="modal-overlay" id="modal-gasto">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>🧾 Registrar gasto</h3>
+      <button class="btn-cerrar-modal" onclick="cerrarGastoModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <span class="section-title">Concepto</span>
+      <input type="text" class="modal-input" id="gasto-concepto" placeholder="Ej: Gas, Arroz, Servilletas…" maxlength="80" oninput="validarGasto()">
+      <span class="section-title">Monto ($)</span>
+      <input type="number" class="modal-input" id="gasto-monto" inputmode="numeric" placeholder="0" min="0" oninput="validarGasto()">
+      <span class="section-title">Forma de pago</span>
+      <div class="metodos-pago" id="metodos-pago-gasto">
+        <button class="metodo-btn" data-metodo="efectivo" onclick="seleccionarMetodoGasto('efectivo')">💵 Efectivo</button>
+        <button class="metodo-btn" data-metodo="nequi" onclick="seleccionarMetodoGasto('nequi')">📱 Nequi</button>
+        <button class="metodo-btn" data-metodo="transferencia" onclick="seleccionarMetodoGasto('transferencia')">🏦 Transf.</button>
+      </div>
+      <span class="section-title">Nota (opcional)</span>
+      <input type="text" class="modal-input" id="gasto-nota" placeholder="Detalles adicionales…" maxlength="100">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-enviar" id="btn-guardar-gasto" onclick="confirmarGasto()" disabled>Guardar gasto</button>
     </div>
   </div>
 </div>
@@ -891,6 +945,9 @@
   let histTab = 'lista';              // 'lista'|'resumen'
   let histSubTab = 'todos';           // 'todos'|'efectivo'|'nequi'|'mixto'
   const PERIODOS = [['hoy','Hoy'],['ayer','Ayer'],['semana','Semana'],['mes','Este mes'],['7dias','7 días'],['30dias','30 días'],['90dias','90 días']];
+  let gastos = [];                    // gastos operacionales, sincronizados en vivo desde Firebase
+  let gastoPeriodo = 'hoy';           // mismo set de períodos que histPeriodo, pero con filtro independiente
+  let metodoGastoSeleccionado = null; // método elegido en el modal de nuevo gasto
 
   const fmt = (n) => "$" + n.toLocaleString('es-CO');
 
@@ -963,11 +1020,13 @@
       : ('Empleado' + (empleadoActual ? ': ' + empleadoActual.nombre : ''));
     document.querySelector('[data-vista="empleados"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     document.querySelector('[data-vista="historial"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
+    document.querySelector('[data-vista="gastos"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     iniciarListenerConexion();
     iniciarListenerComandas();
     if(rolActual === 'admin'){
       iniciarListenerEmpleados();
       iniciarListenerVentas();
+      iniciarListenerGastos();
     }
     renderCategorias();
     renderItems();
@@ -991,16 +1050,18 @@
   // NAVEGACIÓN
   // ---------------------------------------------------------
   function cambiarVista(v){
-    if((v === 'empleados' || v === 'historial') && rolActual !== 'admin') return;
+    if((v === 'empleados' || v === 'historial' || v === 'gastos') && rolActual !== 'admin') return;
     vistaActual = v;
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
     document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
     document.getElementById('vista-kitchen').classList.toggle('activa', v==='kitchen');
     document.getElementById('vista-historial').classList.toggle('activa', v==='historial');
+    document.getElementById('vista-gastos').classList.toggle('activa', v==='gastos');
     document.getElementById('vista-empleados').classList.toggle('activa', v==='empleados');
     if(v==='cocina') renderCocina();
     if(v==='kitchen') renderKitchen();
     if(v==='historial') renderHistorial();
+    if(v==='gastos') renderGastos();
     if(v==='empleados') renderEmpleadosView();
   }
 
@@ -1659,7 +1720,8 @@
     });
   }
 
-  function enPeriodo(ts){
+  function enPeriodo(ts, periodo){
+    periodo = periodo || histPeriodo;
     if(!ts) return false;
     const ahora = new Date();
     const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
@@ -1668,13 +1730,13 @@
     const lunes = new Date(hoy); lunes.setDate(hoy.getDate()-diaSemana);
     const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
     const fd = new Date(ts);
-    if(histPeriodo==='hoy')    return fd >= hoy;
-    if(histPeriodo==='ayer')   return fd >= ayer && fd < hoy;
-    if(histPeriodo==='semana') return fd >= lunes;
-    if(histPeriodo==='mes')    return fd >= primerDiaMes;
-    if(histPeriodo==='7dias')  return fd >= new Date(ahora - 7*864e5);
-    if(histPeriodo==='30dias') return fd >= new Date(ahora - 30*864e5);
-    if(histPeriodo==='90dias') return fd >= new Date(ahora - 90*864e5);
+    if(periodo==='hoy')    return fd >= hoy;
+    if(periodo==='ayer')   return fd >= ayer && fd < hoy;
+    if(periodo==='semana') return fd >= lunes;
+    if(periodo==='mes')    return fd >= primerDiaMes;
+    if(periodo==='7dias')  return fd >= new Date(ahora - 7*864e5);
+    if(periodo==='30dias') return fd >= new Date(ahora - 30*864e5);
+    if(periodo==='90dias') return fd >= new Date(ahora - 90*864e5);
     return true;
   }
 
@@ -1864,6 +1926,135 @@
     win.document.write(html);
     win.document.close();
     win.onload = () => { win.focus(); win.print(); };
+  }
+
+  // ---------------------------------------------------------
+  // GASTOS OPERACIONALES (solo admin)
+  // Registro de gastos del negocio (insumos, servicios, etc.)
+  // por forma de pago, con filtro de período independiente del
+  // historial de ventas.
+  // ---------------------------------------------------------
+  function iniciarListenerGastos(){
+    db.ref('gastos').on('value', snap=>{
+      gastos = [];
+      snap.forEach(child=>{
+        const v = child.val();
+        gastos.push({
+          id: child.key,
+          concepto: v.concepto,
+          monto: v.monto || 0,
+          metodo: v.metodo,
+          nota: v.nota || '',
+          fecha: v.fecha,
+          registradoPor: v.registradoPor || null,
+        });
+      });
+      if(vistaActual === 'gastos') renderGastos();
+    });
+  }
+
+  function setGastoPeriodo(p){ gastoPeriodo = p; renderGastos(); }
+
+  function metodoGastoLabel(m){
+    return m==='nequi' ? '📱 Nequi' : m==='transferencia' ? '🏦 Transferencia' : '💵 Efectivo';
+  }
+
+  function renderGastos(){
+    const cont = document.getElementById('grid-gastos');
+    const delPeriodo = gastos.filter(g => enPeriodo(g.fecha, gastoPeriodo));
+
+    const periodoHTML = `<div class="period-bar">
+      ${PERIODOS.map(([k,label])=>`<button class="period-pill ${gastoPeriodo===k?'activa':''}" onclick="setGastoPeriodo('${k}')">${label}</button>`).join('')}
+    </div>`;
+
+    const totalEfectivo = delPeriodo.filter(g=>g.metodo==='efectivo').reduce((s,g)=>s+g.monto,0);
+    const totalNequi = delPeriodo.filter(g=>g.metodo==='nequi').reduce((s,g)=>s+g.monto,0);
+    const totalTransferencia = delPeriodo.filter(g=>g.metodo==='transferencia').reduce((s,g)=>s+g.monto,0);
+    const totalGeneral = totalEfectivo + totalNequi + totalTransferencia;
+
+    const statsHTML = `<div class="hist-stats">
+      <div class="hist-stat efectivo"><span class="num">${fmt(totalEfectivo)}</span><span class="lbl">💵 Efectivo</span></div>
+      <div class="hist-stat nequi"><span class="num">${fmt(totalNequi)}</span><span class="lbl">📱 Nequi</span></div>
+      <div class="hist-stat transferencia"><span class="num">${fmt(totalTransferencia)}</span><span class="lbl">🏦 Transf.</span></div>
+    </div>`;
+
+    const totalBarHTML = `<div class="gastos-total-bar">
+      <span class="lbl">Total del período</span>
+      <span class="val">${fmt(totalGeneral)}</span>
+    </div>`;
+
+    const addBtnHTML = `<button class="btn-add-gasto" onclick="abrirGastoModal()">➕ Registrar gasto</button>`;
+
+    const ordenados = [...delPeriodo].sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    const listaHTML = ordenados.length === 0
+      ? '<p class="vacio-msg">Sin gastos registrados en este período.</p>'
+      : ordenados.map(g => `
+        <div class="gasto-card">
+          <div class="gasto-info">
+            <div class="gasto-concepto">${g.concepto}</div>
+            ${g.nota ? `<div class="gasto-nota">${g.nota}</div>` : ''}
+            <div class="gasto-fecha">${fmtFechaHora(g.fecha)}${g.registradoPor ? ' · ' + g.registradoPor : ''}</div>
+            <span class="gasto-metodo-badge ${g.metodo}">${metodoGastoLabel(g.metodo)}</span>
+          </div>
+          <div class="gasto-right">
+            <span class="gasto-monto">${fmt(g.monto)}</span>
+            <button class="btn-eliminar-gasto" onclick="eliminarGasto('${g.id}')">🗑</button>
+          </div>
+        </div>`).join('');
+
+    cont.innerHTML = periodoHTML + statsHTML + totalBarHTML + addBtnHTML +
+      `<span class="section-title">${ordenados.length} gasto${ordenados.length===1?'':'s'} registrado${ordenados.length===1?'':'s'}</span>` +
+      listaHTML;
+  }
+
+  function abrirGastoModal(){
+    metodoGastoSeleccionado = null;
+    document.getElementById('gasto-concepto').value = '';
+    document.getElementById('gasto-monto').value = '';
+    document.getElementById('gasto-nota').value = '';
+    document.querySelectorAll('#metodos-pago-gasto .metodo-btn').forEach(b=>b.classList.remove('activo'));
+    document.getElementById('btn-guardar-gasto').disabled = true;
+    document.getElementById('modal-gasto').classList.add('abierto');
+    setTimeout(()=>document.getElementById('gasto-concepto').focus(), 100);
+  }
+
+  function cerrarGastoModal(){
+    document.getElementById('modal-gasto').classList.remove('abierto');
+  }
+
+  function seleccionarMetodoGasto(m){
+    metodoGastoSeleccionado = m;
+    document.querySelectorAll('#metodos-pago-gasto .metodo-btn').forEach(b=>b.classList.toggle('activo', b.dataset.metodo===m));
+    validarGasto();
+  }
+
+  function validarGasto(){
+    const concepto = document.getElementById('gasto-concepto').value.trim();
+    const monto = Number(document.getElementById('gasto-monto').value) || 0;
+    document.getElementById('btn-guardar-gasto').disabled = !(concepto && monto > 0 && metodoGastoSeleccionado);
+  }
+
+  function confirmarGasto(){
+    const concepto = document.getElementById('gasto-concepto').value.trim();
+    const monto = Number(document.getElementById('gasto-monto').value) || 0;
+    const nota = document.getElementById('gasto-nota').value.trim();
+    if(!concepto || monto <= 0 || !metodoGastoSeleccionado) return;
+    db.ref('gastos').push({
+      concepto,
+      monto,
+      metodo: metodoGastoSeleccionado,
+      nota,
+      fecha: firebase.database.ServerValue.TIMESTAMP,
+      registradoPor: empleadoActual ? empleadoActual.nombre : 'Admin',
+    });
+    cerrarGastoModal();
+    mostrarToast('Gasto registrado 🧾');
+  }
+
+  function eliminarGasto(id){
+    if(!confirm('¿Eliminar este gasto? No se puede deshacer.')) return;
+    db.ref('gastos/'+id).remove();
+    mostrarToast('Gasto eliminado');
   }
 
   // ---------------------------------------------------------
