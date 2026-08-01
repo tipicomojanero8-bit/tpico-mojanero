@@ -1950,6 +1950,9 @@
         });
       });
       if(vistaActual === 'gastos') renderGastos();
+    }, err=>{
+      console.error('Error leyendo gastos:', err);
+      mostrarToast('⚠️ Sin permiso para leer gastos (revisa reglas Firebase)');
     });
   }
 
@@ -2013,7 +2016,9 @@
     document.getElementById('gasto-monto').value = '';
     document.getElementById('gasto-nota').value = '';
     document.querySelectorAll('#metodos-pago-gasto .metodo-btn').forEach(b=>b.classList.remove('activo'));
-    document.getElementById('btn-guardar-gasto').disabled = true;
+    const btnGuardar = document.getElementById('btn-guardar-gasto');
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = 'Guardar gasto';
     document.getElementById('modal-gasto').classList.add('abierto');
     setTimeout(()=>document.getElementById('gasto-concepto').focus(), 100);
   }
@@ -2039,6 +2044,9 @@
     const monto = Number(document.getElementById('gasto-monto').value) || 0;
     const nota = document.getElementById('gasto-nota').value.trim();
     if(!concepto || monto <= 0 || !metodoGastoSeleccionado) return;
+    const btnGuardar = document.getElementById('btn-guardar-gasto');
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = 'Guardando…';
     db.ref('gastos').push({
       concepto,
       monto,
@@ -2046,15 +2054,24 @@
       nota,
       fecha: firebase.database.ServerValue.TIMESTAMP,
       registradoPor: empleadoActual ? empleadoActual.nombre : 'Admin',
+    }).then(()=>{
+      cerrarGastoModal();
+      mostrarToast('Gasto registrado 🧾');
+    }).catch(err=>{
+      console.error('Error guardando gasto:', err);
+      btnGuardar.disabled = false;
+      btnGuardar.textContent = 'Guardar gasto';
+      alert('No se pudo guardar el gasto:\n' + err.message + '\n\nProbablemente falte una regla de permisos para la ruta "gastos" en Firebase Realtime Database.');
     });
-    cerrarGastoModal();
-    mostrarToast('Gasto registrado 🧾');
   }
 
   function eliminarGasto(id){
     if(!confirm('¿Eliminar este gasto? No se puede deshacer.')) return;
-    db.ref('gastos/'+id).remove();
-    mostrarToast('Gasto eliminado');
+    db.ref('gastos/'+id).remove().then(()=>{
+      mostrarToast('Gasto eliminado');
+    }).catch(err=>{
+      alert('No se pudo eliminar el gasto:\n' + err.message);
+    });
   }
 
   // ---------------------------------------------------------
