@@ -381,6 +381,10 @@
   .period-bar::-webkit-scrollbar{display:none;}
   .period-pill{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;}
   .period-pill.activa{background:var(--accent-achiote);color:#fff;border-color:var(--accent-achiote);}
+  .period-pill-fecha{display:inline-flex;align-items:center;gap:4px;}
+  .period-pill-fecha input[type=date]{border:none;background:transparent;color:inherit;font-family:inherit;font-weight:700;font-size:12.5px;padding:0;max-width:120px;cursor:pointer;}
+  .period-pill-fecha input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;}
+  .period-pill-fecha.activa input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);}
   .hist-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
   .hist-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 6px;text-align:center;}
   .hist-stat .num{font-family:'Pacifico',cursive;font-size:18px;color:var(--text);display:block;}
@@ -941,12 +945,14 @@
   let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
   let pedidoEnCobro = null;           // {id, total, mesa, metodo} — pedido que se está cobrando, o null
   let ventas = [];                    // ventas cerradas, sincronizadas en vivo desde Firebase
-  let histPeriodo = 'hoy';            // 'hoy'|'ayer'|'semana'|'mes'|'7dias'|'30dias'|'90dias'
+  let histPeriodo = 'hoy';            // 'hoy'|'ayer'|'semana'|'mes'|'7dias'|'30dias'|'90dias'|'fecha'
+  let histFecha = null;               // 'YYYY-MM-DD' cuando histPeriodo==='fecha'
   let histTab = 'lista';              // 'lista'|'resumen'
   let histSubTab = 'todos';           // 'todos'|'efectivo'|'nequi'|'mixto'
   const PERIODOS = [['hoy','Hoy'],['ayer','Ayer'],['semana','Semana'],['mes','Este mes'],['7dias','7 días'],['30dias','30 días'],['90dias','90 días']];
   let gastos = [];                    // gastos operacionales, sincronizados en vivo desde Firebase
   let gastoPeriodo = 'hoy';           // mismo set de períodos que histPeriodo, pero con filtro independiente
+  let gastoFecha = null;              // 'YYYY-MM-DD' cuando gastoPeriodo==='fecha'
   let metodoGastoSeleccionado = null; // método elegido en el modal de nuevo gasto
 
   const fmt = (n) => "$" + n.toLocaleString('es-CO');
@@ -1720,7 +1726,7 @@
     });
   }
 
-  function enPeriodo(ts, periodo){
+  function enPeriodo(ts, periodo, fechaCustom){
     periodo = periodo || histPeriodo;
     if(!ts) return false;
     const ahora = new Date();
@@ -1730,6 +1736,13 @@
     const lunes = new Date(hoy); lunes.setDate(hoy.getDate()-diaSemana);
     const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
     const fd = new Date(ts);
+    if(periodo==='fecha'){
+      if(!fechaCustom) return false;
+      const [y,m,d] = fechaCustom.split('-').map(Number);
+      const ini = new Date(y, m-1, d);
+      const fin = new Date(y, m-1, d, 23, 59, 59, 999);
+      return fd >= ini && fd <= fin;
+    }
     if(periodo==='hoy')    return fd >= hoy;
     if(periodo==='ayer')   return fd >= ayer && fd < hoy;
     if(periodo==='semana') return fd >= lunes;
@@ -1745,6 +1758,17 @@
     return new Date(ts).toLocaleString('es-CO', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
   }
 
+  function fmtFechaCorta(v){
+    if(!v) return '';
+    const [y,m,d] = v.split('-').map(Number);
+    return new Date(y, m-1, d).toLocaleDateString('es-CO', {day:'2-digit', month:'2-digit', year:'numeric'});
+  }
+
+  function hoyISO(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
   function metodoLabelVenta(v){
     if(v.metodoPago === 'mixto'){
       const efvo = (v.detallePago && v.detallePago.efectivo) || 0;
@@ -1755,15 +1779,19 @@
   }
 
   function setHistPeriodo(p){ histPeriodo = p; renderHistorial(); }
+  function setHistFecha(v){ histFecha = v || null; histPeriodo = v ? 'fecha' : 'hoy'; renderHistorial(); }
   function setHistTab(t){ histTab = t; renderHistorial(); }
   function setHistSubTab(s){ histSubTab = s; renderHistorial(); }
 
   function renderHistorial(){
     const cont = document.getElementById('grid-historial');
-    const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada));
+    const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada, histPeriodo, histFecha));
 
     const periodoHTML = `<div class="period-bar">
       ${PERIODOS.map(([k,label])=>`<button class="period-pill ${histPeriodo===k?'activa':''}" onclick="setHistPeriodo('${k}')">${label}</button>`).join('')}
+      <label class="period-pill period-pill-fecha ${histPeriodo==='fecha'?'activa':''}">
+        📅 <input type="date" max="${hoyISO()}" aria-label="Fecha específica" value="${histFecha||''}" onchange="setHistFecha(this.value)">
+      </label>
     </div>`;
 
     const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
@@ -1839,8 +1867,8 @@
   }
 
   function exportarHistorialPDF(){
-    const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada));
-    const periodoLabel = (PERIODOS.find(p=>p[0]===histPeriodo) || ['','?'])[1];
+    const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada, histPeriodo, histFecha));
+    const periodoLabel = histPeriodo==='fecha' ? fmtFechaCorta(histFecha) : (PERIODOS.find(p=>p[0]===histPeriodo) || ['','?'])[1];
 
     const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
     const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
@@ -1957,6 +1985,7 @@
   }
 
   function setGastoPeriodo(p){ gastoPeriodo = p; renderGastos(); }
+  function setGastoFecha(v){ gastoFecha = v || null; gastoPeriodo = v ? 'fecha' : 'hoy'; renderGastos(); }
 
   function metodoGastoLabel(m){
     return m==='nequi' ? '📱 Nequi' : m==='transferencia' ? '🏦 Transferencia' : '💵 Efectivo';
@@ -1964,10 +1993,13 @@
 
   function renderGastos(){
     const cont = document.getElementById('grid-gastos');
-    const delPeriodo = gastos.filter(g => enPeriodo(g.fecha, gastoPeriodo));
+    const delPeriodo = gastos.filter(g => enPeriodo(g.fecha, gastoPeriodo, gastoFecha));
 
     const periodoHTML = `<div class="period-bar">
       ${PERIODOS.map(([k,label])=>`<button class="period-pill ${gastoPeriodo===k?'activa':''}" onclick="setGastoPeriodo('${k}')">${label}</button>`).join('')}
+      <label class="period-pill period-pill-fecha ${gastoPeriodo==='fecha'?'activa':''}">
+        📅 <input type="date" max="${hoyISO()}" aria-label="Fecha específica" value="${gastoFecha||''}" onchange="setGastoFecha(this.value)">
+      </label>
     </div>`;
 
     const totalEfectivo = delPeriodo.filter(g=>g.metodo==='efectivo').reduce((s,g)=>s+g.monto,0);
