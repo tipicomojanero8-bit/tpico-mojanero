@@ -420,13 +420,16 @@
 
   /* ---------- Empleados (solo admin) ---------- */
   .form-empleado{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
-  .form-empleado input{flex:1;min-width:100px;padding:10px 12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;}
+  .form-empleado input, .form-empleado select{flex:1;min-width:100px;padding:10px 12px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;}
   .btn-agregar-empleado{padding:10px 16px;border:none;border-radius:var(--radius-sm);background:var(--accent-mango);color:var(--accent-mango-ink);font-weight:800;font-size:13.5px;cursor:pointer;white-space:nowrap;}
   .empleado-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;}
   .empleado-row .info{flex:1;}
   .empleado-row .nombre{font-weight:700;font-size:14.5px;}
   .empleado-row .pin{color:var(--text-muted);font-size:12.5px;font-family:monospace;letter-spacing:2px;}
   .btn-eliminar{background:none;border:1px solid var(--border);color:var(--accent-achiote);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;flex:0 0 auto;}
+  .puesto-badge{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;white-space:nowrap;}
+  .puesto-badge.mesero{background:rgba(232,169,58,.2);color:var(--accent-mango-ink);}
+  .puesto-badge.cocinero{background:rgba(76,122,61,.15);color:var(--fresh);}
 
   /* ---------- Gastos operacionales (solo admin) ---------- */
   .hist-stat.transferencia .num{color:var(--warn);}
@@ -732,6 +735,10 @@
       <div class="form-empleado">
         <input type="text" id="nuevo-empleado-nombre" placeholder="Nombre">
         <input type="text" id="nuevo-empleado-pin" inputmode="numeric" placeholder="PIN">
+        <select id="nuevo-empleado-puesto">
+          <option value="mesero">Mesero</option>
+          <option value="cocinero">Cocinero</option>
+        </select>
         <button class="btn-agregar-empleado" onclick="agregarEmpleado()">+ Agregar</button>
       </div>
       <div id="lista-empleados"></div>
@@ -986,7 +993,8 @@
   let empleadosCache = [];    // sincronizado en vivo desde Firebase
   let vistaActual = 'cocina';
   let rolActual = null;       // 'admin' | 'empleado'
-  let empleadoActual = null;  // {id, nombre}
+  let empleadoActual = null;  // {id, nombre, puesto}
+  let puestoActual = null;    // 'mesero' | 'cocinero' — solo aplica si rolActual==='empleado'
   let appYaIniciada = false;  // evita registrar los listeners dos veces si onAuthStateChanged y el login manual coinciden
   let conectado = true;       // estado de conexión con Firebase
   let pendientes = {};        // ids de comandas creadas sin conexión, aún sin confirmar por el servidor
@@ -1034,14 +1042,15 @@
       let encontrado = null;
       snap.forEach(child=>{
         const e = child.val();
-        if(String(e.pin) === pin) encontrado = {id:child.key, nombre:e.nombre};
+        if(String(e.pin) === pin) encontrado = {id:child.key, nombre:e.nombre, puesto:e.puesto || 'mesero'};
       });
       if(encontrado){
         // Vinculamos este dispositivo (uid anónimo) a este empleado, de forma
         // durable, para que la próxima vez entre directo sin pedir PIN.
-        db.ref('sesionesPin/' + auth.currentUser.uid).set({empleadoId:encontrado.id, nombre:encontrado.nombre});
+        db.ref('sesionesPin/' + auth.currentUser.uid).set({empleadoId:encontrado.id, nombre:encontrado.nombre, puesto:encontrado.puesto});
         rolActual = 'empleado';
         empleadoActual = encontrado;
+        puestoActual = encontrado.puesto;
         entrarApp();
       } else {
         mostrarErrorLogin('PIN incorrecto');
@@ -1076,12 +1085,17 @@
     document.getElementById('pantalla-login').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('rol-badge').textContent = rolActual === 'admin'
-      ? 'Admin'
-      : ('Empleado' + (empleadoActual ? ': ' + empleadoActual.nombre : ''));
+      ? '🔑 Admin'
+      : (puestoActual === 'cocinero' ? '👨‍🍳 Cocinero' : '🧑‍💼 Mesero') + (empleadoActual ? ': ' + empleadoActual.nombre : '');
     document.querySelector('[data-vista="empleados"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     document.querySelector('[data-vista="historial"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     document.querySelector('[data-vista="gastos"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
     document.querySelector('[data-vista="finanzas"]').style.display = rolActual === 'admin' ? 'flex' : 'none';
+    // Un cocinero solo necesita la vista de Cocina: sin precios, sin cobros, sin crear pedidos
+    const esCocinero = rolActual === 'empleado' && puestoActual === 'cocinero';
+    document.querySelector('[data-vista="cocina"]').style.display = esCocinero ? 'none' : 'flex';
+    const fab = document.getElementById('fab-nuevo-pedido');
+    if(fab) fab.style.display = esCocinero ? 'none' : 'flex';
     iniciarListenerConexion();
     iniciarListenerComandas();
     if(rolActual === 'admin'){
@@ -1094,6 +1108,7 @@
     renderResumen();
     renderCocina();
     renderKitchen();
+    if(esCocinero) cambiarVista('kitchen');
   }
 
   function salir(){
@@ -1112,6 +1127,7 @@
   // ---------------------------------------------------------
   function cambiarVista(v){
     if((v === 'empleados' || v === 'historial' || v === 'gastos' || v === 'finanzas') && rolActual !== 'admin') return;
+    if(v === 'cocina' && rolActual === 'empleado' && puestoActual === 'cocinero') return;
     vistaActual = v;
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('activo', b.dataset.vista===v));
     document.getElementById('vista-cocina').classList.toggle('activa', v==='cocina');
@@ -1540,7 +1556,7 @@
     db.ref('empleados').on('value', snap=>{
       empleadosCache = [];
       snap.forEach(child=>{
-        empleadosCache.push({id:child.key, nombre:child.val().nombre, pin:child.val().pin});
+        empleadosCache.push({id:child.key, nombre:child.val().nombre, pin:child.val().pin, puesto:child.val().puesto || 'mesero'});
       });
       if(vistaActual === 'empleados') renderEmpleadosView();
     });
@@ -1553,7 +1569,7 @@
       : empleadosCache.map(e => `
         <div class="empleado-row">
           <div class="info">
-            <div class="nombre">${e.nombre}</div>
+            <div class="nombre">${e.nombre}<span class="puesto-badge ${e.puesto}">${e.puesto==='cocinero'?'👨‍🍳 Cocinero':'🧑‍💼 Mesero'}</span></div>
             <div class="pin">PIN: ${e.pin}</div>
           </div>
           <button class="btn-eliminar" onclick="eliminarEmpleado('${e.id}')">✕</button>
@@ -1563,12 +1579,15 @@
   function agregarEmpleado(){
     const nombreInput = document.getElementById('nuevo-empleado-nombre');
     const pinInput = document.getElementById('nuevo-empleado-pin');
+    const puestoInput = document.getElementById('nuevo-empleado-puesto');
     const nombre = nombreInput.value.trim();
     const pin = pinInput.value.trim();
+    const puesto = puestoInput.value;
     if(!nombre || !pin) return;
-    db.ref('empleados').push({nombre, pin});
+    db.ref('empleados').push({nombre, pin, puesto});
     nombreInput.value = '';
     pinInput.value = '';
+    puestoInput.value = 'mesero';
   }
 
   function eliminarEmpleado(id){
@@ -2335,7 +2354,8 @@
         if(cargando) cargando.style.display = 'none';
         if(datos && !rolActual && !appYaIniciada){
           rolActual = 'empleado';
-          empleadoActual = { id: datos.empleadoId, nombre: datos.nombre };
+          empleadoActual = { id: datos.empleadoId, nombre: datos.nombre, puesto: datos.puesto || 'mesero' };
+          puestoActual = datos.puesto || 'mesero';
           entrarApp();
         } else if(!datos){
           document.getElementById('pantalla-login').style.display = 'flex';
