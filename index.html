@@ -467,6 +467,14 @@
   .fin-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-muted);}
   .fin-row span:last-child{font-weight:800;color:var(--text);}
 
+  /* ---------- Modal de confirmación (reemplaza confirm() nativo) ---------- */
+  .modal-card-confirmar{max-width:400px;}
+  .modal-card-confirmar .modal-header{border-bottom:none;padding-bottom:6px;}
+  .confirmar-mensaje{font-size:14.5px;color:var(--text);line-height:1.5;}
+  .modal-footer.confirm-actions{display:flex;gap:10px;}
+  .btn-confirm-no{flex:1;padding:13px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-3);color:var(--text);font-weight:800;font-size:14px;cursor:pointer;}
+  .btn-confirm-si{flex:1;padding:13px;border-radius:var(--radius-sm);border:none;background:var(--accent-achiote);color:#fff;font-weight:800;font-size:14px;cursor:pointer;}
+
   /* ---------- Cargando (revisando sesión guardada) ---------- */
   .pantalla-cargando{
     position:fixed;inset:0;z-index:200;
@@ -844,6 +852,22 @@
   </div>
 </div>
 
+<!-- MODAL: CONFIRMACIÓN (reemplaza confirm() nativo del navegador) -->
+<div class="modal-overlay" id="modal-confirmar">
+  <div class="modal-card modal-card-confirmar">
+    <div class="modal-header">
+      <h3 id="confirmar-titulo">¿Estás seguro?</h3>
+    </div>
+    <div class="modal-body">
+      <p class="confirmar-mensaje" id="confirmar-mensaje"></p>
+    </div>
+    <div class="modal-footer confirm-actions">
+      <button class="btn-confirm-no" onclick="cerrarConfirmar()">Cancelar</button>
+      <button class="btn-confirm-si" id="confirmar-btn-ok" onclick="ejecutarConfirmar()">Sí, continuar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Firebase (compat SDK: funciona con <script> normal, sin bundler) -->
@@ -1113,8 +1137,15 @@
 
   function cerrarNuevoPedido(){
     const hayItems = Object.keys(pedidoActual.items).length > 0;
-    if(hayItems && !confirm('Tienes ítems sin enviar en este pedido. ¿Cerrar de todas formas?')) return;
-    document.getElementById('pantalla-nuevo-pedido').classList.remove('abierta');
+    if(!hayItems){
+      document.getElementById('pantalla-nuevo-pedido').classList.remove('abierta');
+      return;
+    }
+    pedirConfirmacion(
+      'Tienes ítems sin enviar en este pedido. ¿Cerrar de todas formas?',
+      () => document.getElementById('pantalla-nuevo-pedido').classList.remove('abierta'),
+      {titulo:'Cerrar pedido', textoOk:'Sí, cerrar'}
+    );
   }
 
   // ---------------------------------------------------------
@@ -1472,18 +1503,23 @@
   function cancelarComanda(id){
     const c = comandas.find(x=>x.id===id);
     if(!c) return;
-    if(!confirm(`¿Cancelar el pedido de ${c.mesa}? Esta acción no se puede deshacer.`)) return;
-    db.ref('canceladas/'+id).set({
-      mesa: c.mesa,
-      items: c.items,
-      total: c.total,
-      creada: c.creada,
-      tomadoPor: c.tomadoPor || null,
-      canceladaPor: empleadoActual ? empleadoActual.nombre : 'Admin',
-      canceladaEn: firebase.database.ServerValue.TIMESTAMP,
-    });
-    db.ref('comandas/'+id).remove();
-    mostrarToast('Pedido cancelado');
+    pedirConfirmacion(
+      `¿Cancelar el pedido de ${c.mesa}? Esta acción no se puede deshacer.`,
+      () => {
+        db.ref('canceladas/'+id).set({
+          mesa: c.mesa,
+          items: c.items,
+          total: c.total,
+          creada: c.creada,
+          tomadoPor: c.tomadoPor || null,
+          canceladaPor: empleadoActual ? empleadoActual.nombre : 'Admin',
+          canceladaEn: firebase.database.ServerValue.TIMESTAMP,
+        });
+        db.ref('comandas/'+id).remove();
+        mostrarToast('Pedido cancelado');
+      },
+      {titulo:'Cancelar pedido', textoOk:'Sí, cancelar'}
+    );
   }
 
   function actualizarBadge(){
@@ -1895,9 +1931,14 @@
   }
 
   function eliminarVenta(id){
-    if(!confirm('¿Eliminar esta venta del historial? No se puede deshacer.')) return;
-    db.ref('ventas/'+id).remove();
-    mostrarToast('Venta eliminada del historial');
+    pedirConfirmacion(
+      '¿Eliminar esta venta del historial? No se puede deshacer.',
+      () => {
+        db.ref('ventas/'+id).remove();
+        mostrarToast('Venta eliminada del historial');
+      },
+      {titulo:'Eliminar venta', textoOk:'Sí, eliminar'}
+    );
   }
 
   function exportarHistorialPDF(){
@@ -2133,12 +2174,17 @@
   }
 
   function eliminarGasto(id){
-    if(!confirm('¿Eliminar este gasto? No se puede deshacer.')) return;
-    db.ref('gastos/'+id).remove().then(()=>{
-      mostrarToast('Gasto eliminado');
-    }).catch(err=>{
-      alert('No se pudo eliminar el gasto:\n' + err.message);
-    });
+    pedirConfirmacion(
+      '¿Eliminar este gasto? No se puede deshacer.',
+      () => {
+        db.ref('gastos/'+id).remove().then(()=>{
+          mostrarToast('Gasto eliminado');
+        }).catch(err=>{
+          alert('No se pudo eliminar el gasto:\n' + err.message);
+        });
+      },
+      {titulo:'Eliminar gasto', textoOk:'Sí, eliminar'}
+    );
   }
 
   // ---------------------------------------------------------
@@ -2223,6 +2269,34 @@
     </div>` : '';
 
     cont.innerHTML = periodoHTML + balanceHTML + statsHTML + efectivoHTML + nequiHTML + transferenciaHTML;
+  }
+
+  // ---------------------------------------------------------
+  // CONFIRMACIÓN (reemplaza confirm() nativo del navegador)
+  // Uso: pedirConfirmacion('mensaje', callback, {titulo, textoOk})
+  // El callback solo se ejecuta si la persona toca "Sí, continuar".
+  // ---------------------------------------------------------
+  let _confirmCallback = null;
+
+  function pedirConfirmacion(mensaje, onConfirm, opts){
+    opts = opts || {};
+    document.getElementById('confirmar-titulo').textContent = opts.titulo || '¿Estás seguro?';
+    document.getElementById('confirmar-mensaje').textContent = mensaje;
+    document.getElementById('confirmar-btn-ok').textContent = opts.textoOk || 'Sí, continuar';
+    _confirmCallback = onConfirm;
+    document.getElementById('modal-confirmar').classList.add('abierto');
+  }
+
+  function cerrarConfirmar(){
+    document.getElementById('modal-confirmar').classList.remove('abierto');
+    _confirmCallback = null;
+  }
+
+  function ejecutarConfirmar(){
+    const cb = _confirmCallback;
+    document.getElementById('modal-confirmar').classList.remove('abierto');
+    _confirmCallback = null;
+    if(cb) cb();
   }
 
   // ---------------------------------------------------------
