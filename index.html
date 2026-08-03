@@ -478,6 +478,16 @@
   .btn-confirm-no{flex:1;padding:13px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-3);color:var(--text);font-weight:800;font-size:14px;cursor:pointer;}
   .btn-confirm-si{flex:1;padding:13px;border-radius:var(--radius-sm);border:none;background:var(--accent-achiote);color:#fff;font-weight:800;font-size:14px;cursor:pointer;}
 
+  /* ---------- Descuentos dinámicos ---------- */
+  .precio-tachado{text-decoration:line-through;color:var(--text-muted);font-size:12px;}
+  .btn-descuento-item{margin-top:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text-muted);font-size:11.5px;font-weight:700;cursor:pointer;}
+  .btn-descuento-item.activo{border-color:var(--accent-achiote);background:rgba(193,64,28,.1);color:var(--accent-achiote);}
+  .descuento-item-nombre{font-weight:800;font-size:15px;margin-bottom:2px;}
+  .descuento-item-orig{font-size:12.5px;color:var(--text-muted);margin-bottom:14px;}
+  .descuento-quick-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;}
+  .btn-desc-quick{padding:9px 4px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-size:12.5px;cursor:pointer;}
+  .btn-desc-quick.activo{border-color:var(--accent-achiote);background:rgba(193,64,28,.12);color:var(--accent-achiote);}
+
   /* ---------- Cargando (revisando sesión guardada) ---------- */
   .pantalla-cargando{
     position:fixed;inset:0;z-index:200;
@@ -875,6 +885,39 @@
   </div>
 </div>
 
+<!-- MODAL: DESCUENTO EN ÍTEM -->
+<div class="modal-overlay" id="modal-descuento">
+  <div class="modal-card modal-card-confirmar">
+    <div class="modal-header">
+      <h3>💲 Ajustar precio</h3>
+      <button class="btn-cerrar-modal" onclick="cerrarDescuento()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="descuento-item-nombre" id="desc-item-nombre"></div>
+      <div class="descuento-item-orig" id="desc-item-orig"></div>
+
+      <span class="section-title">Descuento rápido</span>
+      <div class="descuento-quick-row" id="descuento-quick-row">
+        <button class="btn-desc-quick" data-pct="10" onclick="aplicarDescuento(10)">−10%</button>
+        <button class="btn-desc-quick" data-pct="15" onclick="aplicarDescuento(15)">−15%</button>
+        <button class="btn-desc-quick" data-pct="25" onclick="aplicarDescuento(25)">−25%</button>
+        <button class="btn-desc-quick" data-pct="50" onclick="aplicarDescuento(50)">−50%</button>
+        <button class="btn-desc-quick" data-pct="100" onclick="aplicarDescuento(100)">Gratis</button>
+        <button class="btn-desc-quick" data-pct="0" onclick="aplicarDescuento(0)">Normal</button>
+      </div>
+
+      <span class="section-title">O escribe el % exacto</span>
+      <input type="number" class="modal-input" id="descuento-pct-input" min="0" max="100" placeholder="Ej: 20" oninput="aplicarDescuentoManual(this.value)">
+
+      <span class="section-title">Precio final ($)</span>
+      <input type="number" class="modal-input" id="descuento-precio-input" min="0" oninput="ajustarDesdePrecio(this.value)">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-enviar" onclick="confirmarDescuento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Firebase (compat SDK: funciona con <script> normal, sin bundler) -->
@@ -1199,7 +1242,7 @@
 
   function agregarItem(cat, n, p){
     const key = claveItem(cat, n);
-    if(!pedidoActual.items[key]) pedidoActual.items[key] = {n, p, cat, qty:0, nota:''};
+    if(!pedidoActual.items[key]) pedidoActual.items[key] = {n, p, cat, qty:0, nota:'', pOriginal:p};
     pedidoActual.items[key].qty++;
     renderItems();
     renderResumen();
@@ -1249,12 +1292,15 @@
       ? '<p class="vacio-msg">Toca los platos o bebidas del menú para agregarlos aquí.</p>'
       : items.map(it => {
           const key = claveItem(it.cat, it.n);
+          const esDescuento = it.pOriginal != null && it.p !== it.pOriginal;
+          const pctDesc = esDescuento && it.pOriginal > 0 ? Math.round((1 - it.p/it.pOriginal)*100) : 0;
           return `
           <div class="linea-item">
             <div class="info">
               <div class="n">${it.n}</div>
-              <div class="p">${fmt(it.p)} c/u</div>
+              <div class="p">${esDescuento?`<span class="precio-tachado">${fmt(it.pOriginal)}</span> `:''}${fmt(it.p)} c/u</div>
               <input type="text" class="input-nota" placeholder="Nota (ej: sin cebolla)" value="${(it.nota||'').replace(/"/g,'&quot;')}" oninput="cambiarNota('${key.replace(/'/g,"\\'")}', this.value)">
+              <button class="btn-descuento-item ${esDescuento?'activo':''}" onclick="abrirDescuento('${key.replace(/'/g,"\\'")}','nuevo')">💲 ${esDescuento?(pctDesc>0?`−${pctDesc}%`:'Ajustado'):'Descuento'}</button>
             </div>
             <div class="stepper">
               <button onclick="cambiarQty('${key.replace(/'/g,"\\'")}',-1)">−</button>
@@ -1271,7 +1317,7 @@
   }
 
   function enviarComanda(){
-    const items = Object.values(pedidoActual.items).map(i=>({n:i.n, p:i.p, qty:i.qty, nota:i.nota||''}));
+    const items = Object.values(pedidoActual.items).map(i=>({n:i.n, p:i.p, qty:i.qty, nota:i.nota||'', pOriginal:i.pOriginal!=null?i.pOriginal:i.p}));
     if(items.length === 0) return;
     const total = items.reduce((s,i)=>s+i.qty*i.p,0);
     // Generamos la referencia primero para poder marcarla como "pendiente"
@@ -1610,7 +1656,7 @@
         if(MENU[cat].some(m=>m.n === it.n)){ catEncontrada = cat; break; }
       }
       const key = claveItem(catEncontrada, it.n);
-      items[key] = { n:it.n, p:it.p, qty:it.qty, nota:it.nota||'', cat:catEncontrada };
+      items[key] = { n:it.n, p:it.p, qty:it.qty, nota:it.nota||'', cat:catEncontrada, pOriginal: it.pOriginal!=null?it.pOriginal:it.p };
     });
     edicionActual = { id: c.id, items };
     categoriaActivaEditar = CATEGORIAS[0];
@@ -1656,7 +1702,7 @@
 
   function agregarItemEditar(cat, n, p){
     const key = claveItem(cat, n);
-    if(!edicionActual.items[key]) edicionActual.items[key] = {n, p, cat, qty:0, nota:''};
+    if(!edicionActual.items[key]) edicionActual.items[key] = {n, p, cat, qty:0, nota:'', pOriginal:p};
     edicionActual.items[key].qty++;
     renderItemsEditar();
     renderListaEditar();
@@ -1684,11 +1730,15 @@
       ? '<p class="vacio-msg">Este pedido quedaría vacío. Agrega al menos un ítem, o mejor cancela el pedido.</p>'
       : items.map(it => {
           const key = claveItem(it.cat, it.n);
+          const esDescuento = it.pOriginal != null && it.p !== it.pOriginal;
+          const pctDesc = esDescuento && it.pOriginal > 0 ? Math.round((1 - it.p/it.pOriginal)*100) : 0;
           return `
           <div class="linea-item">
             <div class="info">
               <div class="n">${it.n}</div>
+              <div class="p">${esDescuento?`<span class="precio-tachado">${fmt(it.pOriginal)}</span> `:''}${fmt(it.p)} c/u</div>
               <input type="text" class="input-nota" placeholder="Nota (ej: sin cebolla)" value="${(it.nota||'').replace(/"/g,'&quot;')}" oninput="cambiarNotaEditar('${key.replace(/'/g,"\\'")}', this.value)">
+              <button class="btn-descuento-item ${esDescuento?'activo':''}" onclick="abrirDescuento('${key.replace(/'/g,"\\'")}','editar')">💲 ${esDescuento?(pctDesc>0?`−${pctDesc}%`:'Ajustado'):'Descuento'}</button>
             </div>
             <div class="stepper">
               <button onclick="cambiarQtyEditar('${key.replace(/'/g,"\\'")}',-1)">−</button>
@@ -1701,7 +1751,7 @@
 
   function guardarEdicion(){
     if(!edicionActual) return;
-    const nuevosItems = Object.values(edicionActual.items).map(i=>({n:i.n, p:i.p, qty:i.qty, nota:i.nota||''}));
+    const nuevosItems = Object.values(edicionActual.items).map(i=>({n:i.n, p:i.p, qty:i.qty, nota:i.nota||'', pOriginal:i.pOriginal!=null?i.pOriginal:i.p}));
     if(nuevosItems.length === 0){
       mostrarToast('Agrega al menos un ítem, o cancela el pedido');
       return;
@@ -2316,6 +2366,94 @@
     document.getElementById('modal-confirmar').classList.remove('abierto');
     _confirmCallback = null;
     if(cb) cb();
+  }
+
+  // ---------------------------------------------------------
+  // DESCUENTOS DINÁMICOS
+  // Modal reutilizable para ajustar el precio de un ítem dentro
+  // de un pedido, tanto al armarlo (pedidoActual) como al editar
+  // uno ya enviado a cocina (edicionActual). El descuento aplica
+  // a toda la línea (todas las unidades de ese ítem).
+  // ---------------------------------------------------------
+  let _descItem = null;      // clave del ítem dentro del objeto .items en edición
+  let _descContexto = null;  // 'nuevo' | 'editar'
+
+  function _descuentoItems(){
+    return _descContexto === 'editar' ? edicionActual.items : pedidoActual.items;
+  }
+
+  function abrirDescuento(key, contexto){
+    _descContexto = contexto;
+    const it = _descuentoItems()[key];
+    if(!it) return;
+    _descItem = key;
+    if(it.pOriginal == null) it.pOriginal = it.p;
+    document.getElementById('desc-item-nombre').textContent = it.n;
+    document.getElementById('desc-item-orig').textContent = `Precio original: ${fmt(it.pOriginal)}`;
+    const pct = it.pOriginal > 0 ? Math.round((1 - it.p/it.pOriginal)*100) : 0;
+    _syncDescuentoUI(pct, it.p);
+    document.getElementById('modal-descuento').classList.add('abierto');
+    setTimeout(()=>document.getElementById('descuento-precio-input').focus(), 150);
+  }
+
+  function cerrarDescuento(){
+    document.getElementById('modal-descuento').classList.remove('abierto');
+    _descItem = null;
+    _descContexto = null;
+  }
+
+  function _resaltarDescuentoQuick(pct){
+    document.querySelectorAll('#descuento-quick-row .btn-desc-quick').forEach(b=>{
+      b.classList.toggle('activo', Number(b.dataset.pct) === pct);
+    });
+  }
+
+  function _syncDescuentoUI(pct, precio){
+    document.getElementById('descuento-pct-input').value = isFinite(pct) ? pct : '';
+    document.getElementById('descuento-precio-input').value = isFinite(precio) ? precio : '';
+    _resaltarDescuentoQuick(pct);
+  }
+
+  function aplicarDescuento(pct){
+    if(!_descItem) return;
+    const it = _descuentoItems()[_descItem];
+    if(!it) return;
+    const precio = Math.round(it.pOriginal * (100 - pct) / 100);
+    _syncDescuentoUI(pct, precio);
+  }
+
+  function aplicarDescuentoManual(val){
+    if(!_descItem) return;
+    const it = _descuentoItems()[_descItem];
+    if(!it) return;
+    const pct = parseFloat(val);
+    if(isNaN(pct)){ _resaltarDescuentoQuick(-1); return; }
+    const precio = Math.round(it.pOriginal * (100 - pct) / 100);
+    document.getElementById('descuento-precio-input').value = precio;
+    _resaltarDescuentoQuick(pct);
+  }
+
+  function ajustarDesdePrecio(val){
+    if(!_descItem) return;
+    const it = _descuentoItems()[_descItem];
+    if(!it || !(it.pOriginal > 0)) return;
+    const precio = parseFloat(val);
+    if(isNaN(precio)){ document.getElementById('descuento-pct-input').value=''; _resaltarDescuentoQuick(-1); return; }
+    const pct = Math.round((1 - precio/it.pOriginal) * 100);
+    document.getElementById('descuento-pct-input').value = pct;
+    _resaltarDescuentoQuick(pct);
+  }
+
+  function confirmarDescuento(){
+    if(!_descItem) return;
+    const it = _descuentoItems()[_descItem];
+    if(!it) return;
+    const precio = parseFloat(document.getElementById('descuento-precio-input').value);
+    it.p = (isNaN(precio) || precio < 0) ? it.pOriginal : Math.round(precio);
+    const contexto = _descContexto;
+    cerrarDescuento();
+    if(contexto === 'editar'){ renderItemsEditar(); renderListaEditar(); }
+    else { renderItems(); renderResumen(); }
   }
 
   // ---------------------------------------------------------
