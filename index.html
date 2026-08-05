@@ -488,6 +488,12 @@
   .btn-desc-quick{padding:9px 4px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-size:12.5px;cursor:pointer;}
   .btn-desc-quick.activo{border-color:var(--accent-achiote);background:rgba(193,64,28,.12);color:var(--accent-achiote);}
 
+  /* ---------- Selector de presentación/tamaño ---------- */
+  .tamano-opts{display:flex;flex-direction:column;gap:8px;}
+  .btn-tamano{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:14px 16px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-size:14.5px;cursor:pointer;text-align:left;}
+  .btn-tamano:active{background:var(--surface-3);}
+  .btn-tamano .precio-tamano{font-family:'Pacifico',cursive;color:var(--fresh);font-size:16px;}
+
   /* ---------- Cargando (revisando sesión guardada) ---------- */
   .pantalla-cargando{
     position:fixed;inset:0;z-index:200;
@@ -918,6 +924,19 @@
   </div>
 </div>
 
+<!-- MODAL: ELEGIR PRESENTACIÓN / TAMAÑO -->
+<div class="modal-overlay" id="modal-tamano">
+  <div class="modal-card modal-card-confirmar">
+    <div class="modal-header">
+      <h3 id="tamano-titulo">¿Qué presentación?</h3>
+      <button class="btn-cerrar-modal" onclick="cerrarTamanoModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tamano-opts" id="tamano-opts"></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Firebase (compat SDK: funciona con <script> normal, sin bundler) -->
@@ -948,9 +967,10 @@
   // =========================================================
   const MENU = {
     "Picadas": [
-      {n:"Picada Mojanera (para 2)", p:48000},
-      {n:"Picada Mixta", p:38000},
-      {n:"Picada de Chicharrón", p:32000},
+      {n:"Típica", sizes:[{l:"Personal",p:25000},{l:"Doble",p:38000},{l:"Familiar",p:55000}]},
+      {n:"Mojanera", sizes:[{l:"Personal",p:25000},{l:"Doble",p:38000},{l:"Familiar",p:58000}]},
+      {n:"Trifásica", sizes:[{l:"Personal",p:20000},{l:"Doble",p:31000},{l:"Familiar",p:42000}]},
+      {n:"Dos carnes", sizes:[{l:"Personal",p:20000},{l:"Doble",p:30000},{l:"Familiar",p:41000}]},
     ],
     "Asados": [
       {n:"Carne Asada", p:28000},
@@ -1229,15 +1249,31 @@
     const cont = document.getElementById('grid-items');
     const items = MENU[categoriaActiva] || [];
     cont.innerHTML = items.map(it => {
-      const key = claveItem(categoriaActiva, it.n);
-      const enPedido = pedidoActual.items[key];
+      let enPedidoQty = 0;
+      if(it.sizes){
+        it.sizes.forEach(s=>{
+          const k = claveItem(categoriaActiva, `${it.n} (${s.l})`);
+          if(pedidoActual.items[k]) enPedidoQty += pedidoActual.items[k].qty;
+        });
+      } else {
+        const k = claveItem(categoriaActiva, it.n);
+        if(pedidoActual.items[k]) enPedidoQty = pedidoActual.items[k].qty;
+      }
+      const precioTile = it.sizes ? `Desde ${fmt(Math.min(...it.sizes.map(s=>s.p)))}` : fmt(it.p);
       return `
-        <button class="item-card" onclick="agregarItem('${categoriaActiva.replace(/'/g,"\\'")}','${it.n.replace(/'/g,"\\'")}',${it.p})">
-          ${enPedido ? `<span class="qty-tag">x${enPedido.qty}</span>` : ''}
+        <button class="item-card" onclick="tocarItem('${categoriaActiva.replace(/'/g,"\\'")}','${it.n.replace(/'/g,"\\'")}')">
+          ${enPedidoQty>0 ? `<span class="qty-tag">x${enPedidoQty}</span>` : ''}
           <span class="nombre">${it.n}</span>
-          <span class="precio">${fmt(it.p)}</span>
+          <span class="precio">${precioTile}</span>
         </button>`;
     }).join('');
+  }
+
+  function tocarItem(cat, n){
+    const item = (MENU[cat]||[]).find(i=>i.n===n);
+    if(!item) return;
+    if(item.sizes && item.sizes.length){ abrirTamanoModal(cat, item, 'nuevo'); return; }
+    agregarItem(cat, n, item.p);
   }
 
   function agregarItem(cat, n, p){
@@ -1689,15 +1725,31 @@
     const cont = document.getElementById('grid-items-editar');
     const items = MENU[categoriaActivaEditar] || [];
     cont.innerHTML = items.map(it => {
-      const key = claveItem(categoriaActivaEditar, it.n);
-      const enPedido = edicionActual.items[key];
+      let enPedidoQty = 0;
+      if(it.sizes){
+        it.sizes.forEach(s=>{
+          const k = claveItem(categoriaActivaEditar, `${it.n} (${s.l})`);
+          if(edicionActual.items[k]) enPedidoQty += edicionActual.items[k].qty;
+        });
+      } else {
+        const k = claveItem(categoriaActivaEditar, it.n);
+        if(edicionActual.items[k]) enPedidoQty = edicionActual.items[k].qty;
+      }
+      const precioTile = it.sizes ? `Desde ${fmt(Math.min(...it.sizes.map(s=>s.p)))}` : fmt(it.p);
       return `
-        <button class="item-card" onclick="agregarItemEditar('${categoriaActivaEditar.replace(/'/g,"\\'")}','${it.n.replace(/'/g,"\\'")}',${it.p})">
-          ${enPedido ? `<span class="qty-tag">x${enPedido.qty}</span>` : ''}
+        <button class="item-card" onclick="tocarItemEditar('${categoriaActivaEditar.replace(/'/g,"\\'")}','${it.n.replace(/'/g,"\\'")}')">
+          ${enPedidoQty>0 ? `<span class="qty-tag">x${enPedidoQty}</span>` : ''}
           <span class="nombre">${it.n}</span>
-          <span class="precio">${fmt(it.p)}</span>
+          <span class="precio">${precioTile}</span>
         </button>`;
     }).join('');
+  }
+
+  function tocarItemEditar(cat, n){
+    const item = (MENU[cat]||[]).find(i=>i.n===n);
+    if(!item) return;
+    if(item.sizes && item.sizes.length){ abrirTamanoModal(cat, item, 'editar'); return; }
+    agregarItemEditar(cat, n, item.p);
   }
 
   function agregarItemEditar(cat, n, p){
@@ -2454,6 +2506,41 @@
     cerrarDescuento();
     if(contexto === 'editar'){ renderItemsEditar(); renderListaEditar(); }
     else { renderItems(); renderResumen(); }
+  }
+
+  // ---------------------------------------------------------
+  // SELECTOR DE PRESENTACIÓN / TAMAÑO
+  // Para ítems del menú con varios precios (ej. Picadas: Personal,
+  // Doble, Familiar). Al elegir uno, se agrega al pedido como un
+  // ítem propio: "Típica (Doble)" con su precio correspondiente.
+  // ---------------------------------------------------------
+  let _tamanoItem = null;      // {cat, n} del ítem del MENU en elección
+  let _tamanoContexto = null;  // 'nuevo' | 'editar'
+
+  function abrirTamanoModal(cat, item, contexto){
+    _tamanoItem = {cat, n:item.n};
+    _tamanoContexto = contexto;
+    document.getElementById('tamano-titulo').textContent = item.n;
+    document.getElementById('tamano-opts').innerHTML = item.sizes.map(s=>`
+      <button class="btn-tamano" onclick="elegirTamano('${s.l.replace(/'/g,"\\'")}',${s.p})">
+        <span>${s.l}</span>
+        <span class="precio-tamano">${fmt(s.p)}</span>
+      </button>`).join('');
+    document.getElementById('modal-tamano').classList.add('abierto');
+  }
+
+  function cerrarTamanoModal(){
+    document.getElementById('modal-tamano').classList.remove('abierto');
+    _tamanoItem = null;
+    _tamanoContexto = null;
+  }
+
+  function elegirTamano(label, precio){
+    if(!_tamanoItem) return;
+    const nombreFinal = `${_tamanoItem.n} (${label})`;
+    if(_tamanoContexto === 'editar') agregarItemEditar(_tamanoItem.cat, nombreFinal, precio);
+    else agregarItem(_tamanoItem.cat, nombreFinal, precio);
+    cerrarTamanoModal();
   }
 
   // ---------------------------------------------------------
