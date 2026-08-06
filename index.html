@@ -571,7 +571,9 @@
   .modal-footer{padding:14px 18px;border-top:1px solid var(--border);}
 
   /* ---------- Modal: cobrar pedido ---------- */
-  .cobro-total{font-size:30px;font-weight:400;color:var(--fresh);margin:0 0 18px;font-family:'Pacifico',cursive;}
+  .cobro-total{font-size:30px;font-weight:400;color:var(--fresh);margin:0 0 4px;font-family:'Pacifico',cursive;}
+  .cobro-subtotal-detalle{font-size:12.5px;color:var(--text-muted);margin:0 0 14px;}
+  .hist-venta-propina{font-size:11px;color:var(--fresh);font-weight:800;margin-bottom:2px;}
   .metodos-pago{display:flex;gap:8px;margin-bottom:16px;}
   .metodo-btn{
     flex:1;
@@ -824,6 +826,14 @@
     </div>
     <div class="modal-body">
       <p class="cobro-total" id="cobro-total-texto"></p>
+      <p class="cobro-subtotal-detalle" id="cobro-subtotal-detalle" style="display:none;"></p>
+      <span class="section-title">Propina (opcional)</span>
+      <div class="metodos-pago" id="propina-opts">
+        <button class="metodo-btn" data-pct="0" onclick="elegirPropina(0)">Sin propina</button>
+        <button class="metodo-btn" data-pct="10" onclick="elegirPropina(10)">10%</button>
+        <button class="metodo-btn" data-pct="15" onclick="elegirPropina(15)">15%</button>
+      </div>
+      <input type="number" class="modal-input" id="propina-custom-input" inputmode="numeric" placeholder="O escribe el monto exacto ($)" oninput="actualizarPropinaManual(this.value)">
       <span class="section-title">Método de pago</span>
       <div class="metodos-pago" id="metodos-pago">
         <button class="metodo-btn" data-metodo="efectivo" onclick="seleccionarMetodo('efectivo')">💵 Efectivo</button>
@@ -1108,7 +1118,7 @@
   let categoriaActivaEditar = CATEGORIAS[0];
   let idsConocidosCocina = new Set(); // para detectar cuáles comandas son nuevas y sonar la alerta
   let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
-  let pedidoEnCobro = null;           // {id, total, mesa, metodo} — pedido que se está cobrando, o null
+  let pedidoEnCobro = null;           // {id, total, mesa, metodo, propina} — pedido que se está cobrando, o null
   let ventas = [];                    // ventas cerradas, sincronizadas en vivo desde Firebase
   let histPeriodo = 'hoy';            // 'hoy'|'ayer'|'semana'|'mes'|'7dias'|'30dias'|'90dias'|'fecha'
   let histFecha = null;               // 'YYYY-MM-DD' cuando histPeriodo==='fecha'
@@ -1872,10 +1882,12 @@
   function abrirCobro(id){
     const c = comandas.find(x=>x.id===id);
     if(!c) return;
-    pedidoEnCobro = { id: c.id, total: c.total, mesa: c.mesa, metodo: null };
+    pedidoEnCobro = { id: c.id, total: c.total, mesa: c.mesa, metodo: null, propina: 0 };
     document.getElementById('modal-cobrar-titulo').textContent = 'Cobrar — ' + c.mesa;
-    document.getElementById('cobro-total-texto').textContent = fmt(c.total);
-    document.querySelectorAll('.metodo-btn').forEach(b=>b.classList.remove('activo'));
+    document.querySelectorAll('#propina-opts .metodo-btn').forEach(b=>b.classList.toggle('activo', b.dataset.pct==='0'));
+    document.getElementById('propina-custom-input').value = '';
+    actualizarTotalCobro();
+    document.querySelectorAll('#metodos-pago .metodo-btn').forEach(b=>b.classList.remove('activo'));
     document.getElementById('mixto-detalle').style.display = 'none';
     document.getElementById('mixto-efectivo').value = '';
     document.getElementById('mixto-nequi').value = '';
@@ -1889,10 +1901,40 @@
     document.getElementById('modal-cobrar').classList.remove('abierto');
   }
 
+  function actualizarTotalCobro(){
+    if(!pedidoEnCobro) return;
+    const totalFinal = pedidoEnCobro.total + pedidoEnCobro.propina;
+    document.getElementById('cobro-total-texto').textContent = fmt(totalFinal);
+    const detalle = document.getElementById('cobro-subtotal-detalle');
+    if(pedidoEnCobro.propina > 0){
+      detalle.textContent = `Subtotal ${fmt(pedidoEnCobro.total)} + Propina ${fmt(pedidoEnCobro.propina)}`;
+      detalle.style.display = 'block';
+    } else {
+      detalle.style.display = 'none';
+    }
+  }
+
+  function elegirPropina(pct){
+    if(!pedidoEnCobro) return;
+    pedidoEnCobro.propina = Math.round(pedidoEnCobro.total * pct / 100);
+    document.getElementById('propina-custom-input').value = '';
+    document.querySelectorAll('#propina-opts .metodo-btn').forEach(b=>b.classList.toggle('activo', Number(b.dataset.pct)===pct));
+    actualizarTotalCobro();
+    if(pedidoEnCobro.metodo === 'mixto') validarMixto();
+  }
+
+  function actualizarPropinaManual(val){
+    if(!pedidoEnCobro) return;
+    pedidoEnCobro.propina = Math.max(0, Number(val) || 0);
+    document.querySelectorAll('#propina-opts .metodo-btn').forEach(b=>b.classList.remove('activo'));
+    actualizarTotalCobro();
+    if(pedidoEnCobro.metodo === 'mixto') validarMixto();
+  }
+
   function seleccionarMetodo(metodo){
     if(!pedidoEnCobro) return;
     pedidoEnCobro.metodo = metodo;
-    document.querySelectorAll('.metodo-btn').forEach(b=>b.classList.toggle('activo', b.dataset.metodo===metodo));
+    document.querySelectorAll('#metodos-pago .metodo-btn').forEach(b=>b.classList.toggle('activo', b.dataset.metodo===metodo));
     const esMixto = metodo === 'mixto';
     document.getElementById('mixto-detalle').style.display = esMixto ? 'block' : 'none';
     if(esMixto){
@@ -1904,16 +1946,17 @@
 
   function validarMixto(){
     if(!pedidoEnCobro) return;
+    const totalFinal = pedidoEnCobro.total + pedidoEnCobro.propina;
     const efectivo = Number(document.getElementById('mixto-efectivo').value) || 0;
     const nequi = Number(document.getElementById('mixto-nequi').value) || 0;
     const suma = efectivo + nequi;
     const aviso = document.getElementById('mixto-aviso');
     const btn = document.getElementById('btn-confirmar-cobro');
-    if(suma === pedidoEnCobro.total && suma > 0){
+    if(suma === totalFinal && suma > 0){
       aviso.textContent = '';
       btn.disabled = false;
     } else {
-      aviso.textContent = `La suma debe dar ${fmt(pedidoEnCobro.total)} (llevas ${fmt(suma)})`;
+      aviso.textContent = `La suma debe dar ${fmt(totalFinal)} (llevas ${fmt(suma)})`;
       btn.disabled = true;
     }
   }
@@ -1929,6 +1972,7 @@
       mesa: c.mesa,
       items: c.items,
       total: c.total,
+      propina: pedidoEnCobro.propina || 0,
       tomadoPor: c.tomadoPor || null,
       creada: c.creada,
       listaEn: c.listaEn || null,
@@ -1950,7 +1994,7 @@
       snap.forEach(child=>{
         const v = child.val();
         ventas.push({
-          id: child.key, mesa: v.mesa, items: v.items||[], total: v.total||0,
+          id: child.key, mesa: v.mesa, items: v.items||[], total: v.total||0, propina: v.propina||0,
           tomadoPor: v.tomadoPor, creada: v.creada, listaEn: v.listaEn,
           cerrada: v.cerrada || v.creada, metodoPago: v.metodoPago, detallePago: v.detallePago || null,
         });
@@ -2028,15 +2072,17 @@
       </label>
     </div>`;
 
-    const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
-    const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
-    const totalGeneral = delPeriodo.reduce((s,v)=>s+v.total, 0);
+    const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? (v.total+(v.propina||0)) : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
+    const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? (v.total+(v.propina||0)) : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
+    const totalGeneral = delPeriodo.reduce((s,v)=>s+v.total+(v.propina||0), 0);
+    const totalPropinas = delPeriodo.reduce((s,v)=>s+(v.propina||0), 0);
 
     const statsHTML = `<div class="hist-stats">
       <div class="hist-stat efectivo"><span class="num">${fmt(totalEfectivo)}</span><span class="lbl">💵 Efectivo</span></div>
       <div class="hist-stat nequi"><span class="num">${fmt(totalNequi)}</span><span class="lbl">📱 Nequi</span></div>
       <div class="hist-stat"><span class="num">${fmt(totalGeneral)}</span><span class="lbl">📦 Total</span></div>
-    </div>`;
+    </div>`
+    + (totalPropinas > 0 ? `<div class="gastos-total-bar"><span class="lbl">💰 Propinas del período</span><span class="val" style="color:var(--fresh)">${fmt(totalPropinas)}</span></div>` : '');
 
     const tabsHTML = `<div class="hist-tabs">
       <button class="hist-tab-btn ${histTab==='lista'?'activa':''}" onclick="setHistTab('lista')">📋 Lista</button>
@@ -2087,7 +2133,10 @@
           <div class="hist-venta-items">${v.items.map(i=>`${i.qty}× ${i.n}${i.nota?` (${i.nota})`:''}`).join(', ')}</div>
           <div class="hist-venta-footer">
             <span class="hist-metodo-badge ${v.metodoPago}">${metodoLabelVenta(v)}</span>
-            <span class="hist-venta-total">${fmt(v.total)}</span>
+            <div style="text-align:right">
+              ${v.propina>0?`<div class="hist-venta-propina">+${fmt(v.propina)} propina</div>`:''}
+              <span class="hist-venta-total">${fmt(v.total+(v.propina||0))}</span>
+            </div>
           </div>
         </div>`).join('');
 
@@ -2109,9 +2158,10 @@
     const delPeriodo = ventas.filter(v => enPeriodo(v.cerrada, histPeriodo, histFecha));
     const periodoLabel = histPeriodo==='fecha' ? fmtFechaCorta(histFecha) : (PERIODOS.find(p=>p[0]===histPeriodo) || ['','?'])[1];
 
-    const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
-    const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? v.total : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
-    const totalGeneral = delPeriodo.reduce((s,v)=>s+v.total, 0);
+    const totalEfectivo = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='efectivo' ? (v.total+(v.propina||0)) : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.efectivo)||0) : 0)), 0);
+    const totalNequi = delPeriodo.reduce((s,v)=> s + (v.metodoPago==='nequi' ? (v.total+(v.propina||0)) : (v.metodoPago==='mixto' ? ((v.detallePago && v.detallePago.nequi)||0) : 0)), 0);
+    const totalGeneral = delPeriodo.reduce((s,v)=>s+v.total+(v.propina||0), 0);
+    const totalPropinas = delPeriodo.reduce((s,v)=>s+(v.propina||0), 0);
 
     const mapa = {};
     delPeriodo.forEach(v => v.items.forEach(i=>{
@@ -2133,7 +2183,7 @@
   body{font-family:'Segoe UI',Arial,sans-serif;color:#2A1A0F;font-size:13px;padding:24px;}
   h1{font-size:22px;font-weight:900;letter-spacing:1px;color:#C1401C;margin-bottom:2px;}
   .sub{font-size:12px;color:#888;margin-bottom:18px;}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
   .stat{background:#F7ECD3;border-radius:8px;padding:12px;text-align:center;}
   .stat-val{font-size:18px;font-weight:900;}
   .stat-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-top:3px;}
@@ -2158,6 +2208,7 @@
 <div class="stats">
   <div class="stat"><div class="stat-val" style="color:#4C7A3D">${fmt(totalEfectivo)}</div><div class="stat-lbl">💵 Efectivo</div></div>
   <div class="stat"><div class="stat-val" style="color:#8B5FBF">${fmt(totalNequi)}</div><div class="stat-lbl">📱 Nequi</div></div>
+  <div class="stat"><div class="stat-val" style="color:#A8681A">${fmt(totalPropinas)}</div><div class="stat-lbl">💰 Propinas</div></div>
   <div class="stat"><div class="stat-val" style="color:#2A1A0F">${fmt(totalGeneral)}</div><div class="stat-lbl">📦 Total</div></div>
 </div>
 
@@ -2169,7 +2220,7 @@
 
 <h2>📋 Lista de ventas (${ordenadas.length})</h2>
 <table>
-  <tr><th>Fecha</th><th>Mesa</th><th>Items</th><th>Pago</th><th class="num">Total</th></tr>
+  <tr><th>Fecha</th><th>Mesa</th><th>Items</th><th>Pago</th><th class="num">Propina</th><th class="num">Total</th></tr>
   ${ordenadas.map(v=>{
     const metodo = v.metodoPago==='nequi'?'neq':v.metodoPago==='mixto'?'mix':'efe';
     const label = v.metodoPago==='mixto' ? 'Mixto' : v.metodoPago==='nequi' ? 'Nequi' : 'Efectivo';
@@ -2179,7 +2230,8 @@
       <td>${v.mesa}</td>
       <td style="font-size:11px;color:#555">${items}</td>
       <td><span class="badge ${metodo}">${label}</span></td>
-      <td class="num">${fmt(v.total)}</td>
+      <td class="num">${v.propina>0?fmt(v.propina):'—'}</td>
+      <td class="num">${fmt(v.total+(v.propina||0))}</td>
     </tr>`;
   }).join('')}
 </table>
@@ -2366,16 +2418,24 @@
     const ventasP = ventas.filter(v => enPeriodo(v.cerrada, finPeriodo, finFecha));
     const gastosP = gastos.filter(g => enPeriodo(g.fecha, finPeriodo, finFecha));
 
+    // Ingresos del negocio (comida/bebida) — SIN propina, para que la ganancia
+    // neta y el margen reflejen lo que realmente gana el negocio, no lo que
+    // luego se reparte al personal.
+    const totalIngresos = ventasP.reduce((s,v)=>s+v.total, 0);
+    const totalPropinas = ventasP.reduce((s,v)=>s+(v.propina||0), 0);
+
+    // Efectivo/Nequi disponible SÍ incluye propina: es plata real que está
+    // físicamente en la caja o la cuenta, aunque una parte esté destinada al personal.
     let inEfectivo = 0, inNequi = 0;
     ventasP.forEach(v=>{
-      if(v.metodoPago === 'efectivo') inEfectivo += v.total;
-      else if(v.metodoPago === 'nequi') inNequi += v.total;
+      const montoTotal = v.total + (v.propina||0);
+      if(v.metodoPago === 'efectivo') inEfectivo += montoTotal;
+      else if(v.metodoPago === 'nequi') inNequi += montoTotal;
       else if(v.metodoPago === 'mixto' && v.detallePago){
         inEfectivo += v.detallePago.efectivo || 0;
         inNequi += v.detallePago.nequi || 0;
       }
     });
-    const totalIngresos = inEfectivo + inNequi;
 
     const gastEfectivo = gastosP.filter(g=>g.metodo==='efectivo').reduce((s,g)=>s+g.monto,0);
     const gastNequi = gastosP.filter(g=>g.metodo==='nequi').reduce((s,g)=>s+g.monto,0);
@@ -2399,20 +2459,21 @@
     const balanceHTML = `<div class="fin-balance">
       <div class="fin-balance-label">📊 Ganancia neta</div>
       <div class="fin-balance-val" style="color:${balColor}">${fmt(Math.round(gananciaNeta))}</div>
-      <div class="fin-balance-sub">Ingresos ${fmt(Math.round(totalIngresos))} − Gastos ${fmt(Math.round(totalGastos))}</div>
+      <div class="fin-balance-sub">Ingresos ${fmt(Math.round(totalIngresos))} − Gastos ${fmt(Math.round(totalGastos))} · no incluye propinas</div>
     </div>`;
 
     const statsHTML = `<div class="hist-stats">
       <div class="hist-stat"><span class="num">${ventasP.length}</span><span class="lbl">📦 Ventas</span></div>
       <div class="hist-stat"><span class="num">${fmt(Math.round(ticketProm))}</span><span class="lbl">🎫 Ticket prom.</span></div>
       <div class="hist-stat"><span class="num">${margen}%</span><span class="lbl">📈 Margen</span></div>
-    </div>`;
+    </div>`
+    + (totalPropinas > 0 ? `<div class="gastos-total-bar"><span class="lbl">💰 Propinas del período</span><span class="val" style="color:var(--fresh)">${fmt(Math.round(totalPropinas))}</span></div>` : '');
 
     const efectivoHTML = `<div class="fin-card efectivo">
       <div class="fin-card-header"><span class="fin-card-icon">💵</span><span class="fin-card-title">Efectivo disponible</span></div>
       <div class="fin-card-val" style="color:${dispEfectivo>=0?'var(--fresh)':'var(--accent-achiote)'}">${fmt(Math.round(dispEfectivo))}</div>
       <div class="fin-card-breakdown">
-        <div class="fin-row"><span>+ Cobrado en efectivo</span><span>${fmt(Math.round(inEfectivo))}</span></div>
+        <div class="fin-row"><span>+ Cobrado en efectivo (incl. propinas)</span><span>${fmt(Math.round(inEfectivo))}</span></div>
         <div class="fin-row"><span>− Gastos en efectivo</span><span>${fmt(Math.round(gastEfectivo))}</span></div>
       </div>
     </div>`;
@@ -2421,7 +2482,7 @@
       <div class="fin-card-header"><span class="fin-card-icon">📱</span><span class="fin-card-title">Nequi disponible</span></div>
       <div class="fin-card-val" style="color:${dispNequi>=0?'var(--fresh)':'var(--accent-achiote)'}">${fmt(Math.round(dispNequi))}</div>
       <div class="fin-card-breakdown">
-        <div class="fin-row"><span>+ Cobrado por Nequi</span><span>${fmt(Math.round(inNequi))}</span></div>
+        <div class="fin-row"><span>+ Cobrado por Nequi (incl. propinas)</span><span>${fmt(Math.round(inNequi))}</span></div>
         <div class="fin-row"><span>− Gastos por Nequi</span><span>${fmt(Math.round(gastNequi))}</span></div>
       </div>
     </div>`;
