@@ -1117,6 +1117,7 @@
   let edicionActual = null;   // {id, items:{clave:{n,p,qty,nota,cat}}} — pedido que se está editando, o null
   let categoriaActivaEditar = CATEGORIAS[0];
   let idsConocidosCocina = new Set(); // para detectar cuáles comandas son nuevas y sonar la alerta
+  let idsListosConocidos = new Set(); // para detectar pedidos que ACABAN de quedar "lista" y avisarle al mesero
   let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
   let pedidoEnCobro = null;           // {id, total, mesa, metodo, propina} — pedido que se está cobrando, o null
   let ventas = [];                    // ventas cerradas, sincronizadas en vivo desde Firebase
@@ -1496,6 +1497,30 @@
     } catch(e){ /* si el navegador bloquea audio, seguimos sin sonido */ }
   }
 
+  // Campanita distinta (más aguda y suave) para avisarle al mesero que la
+  // cocina dejó un pedido listo para servir/cobrar — así se distingue de
+  // la alerta de "pedido nuevo" solo por el oído.
+  function sonarAlertaListo(){
+    const ctx = getAudioCtxCocina();
+    if(!ctx) return;
+    try{
+      [1046, 1318].forEach((freq, i)=>{
+        const t0 = ctx.currentTime + i*0.14;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.3, t0+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0+0.37);
+      });
+    } catch(e){ /* si el navegador bloquea audio, seguimos sin sonido */ }
+  }
+
   // ---------------------------------------------------------
   // VISTA COCINA (sincronizada en vivo con Realtime Database)
   // ---------------------------------------------------------
@@ -1514,6 +1539,17 @@
         if(hayNuevas && vistaActual === 'kitchen') sonarAlertaCocina();
       }
       idsConocidosCocina = idsActuales;
+
+      const idsListosActuales = new Set(comandas.filter(c=>c.estado==='lista').map(c=>c.id));
+      if(!primeraCargaComandas){
+        const nuevosListos = comandas.filter(c=>c.estado==='lista' && !idsListosConocidos.has(c.id));
+        if(nuevosListos.length && vistaActual === 'cocina'){
+          sonarAlertaListo();
+          mostrarToast(nuevosListos.length===1 ? `✅ ${nuevosListos[0].mesa} está lista` : `✅ ${nuevosListos.length} pedidos están listos`);
+        }
+      }
+      idsListosConocidos = idsListosActuales;
+
       primeraCargaComandas = false;
       actualizarBadge();
       if(vistaActual === 'cocina') renderCocina();
