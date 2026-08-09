@@ -475,6 +475,13 @@
   .fin-card-sub{font-size:11.5px;color:var(--text-muted);margin-top:8px;line-height:1.4;}
   .fin-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-muted);}
   .fin-row span:last-child{font-weight:800;color:var(--text);}
+  .fin-mesero-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+  .fin-mesero-row:last-child{border-bottom:none;}
+  .fin-mesero-nombre{font-weight:800;font-size:13.5px;}
+  .fin-mesero-meta{font-size:11px;color:var(--text-muted);margin-top:1px;}
+  .fin-mesero-val{text-align:right;}
+  .fin-mesero-total{font-weight:800;font-size:14px;}
+  .fin-mesero-propina{font-size:11px;color:var(--fresh);font-weight:700;margin-top:1px;}
 
   /* ---------- Modal de confirmación (reemplaza confirm() nativo) ---------- */
   .modal-card-confirmar{max-width:400px;}
@@ -1148,6 +1155,7 @@
   let categoriaActivaEditar = CATEGORIAS[0];
   let idsConocidosCocina = new Set(); // para detectar cuáles comandas son nuevas y sonar la alerta
   let idsListosConocidos = new Set(); // para detectar pedidos que ACABAN de quedar "lista" y avisarle al mesero
+  let idsEditadosConocidos = new Set(); // para detectar pedidos que ACABAN de ser modificados y avisarle a cocina
   let primeraCargaComandas = true;    // evita que suene en la carga inicial de la sesión
   let pedidoEnCobro = null;           // {id, total, mesa, metodo, propina} — pedido que se está cobrando, o null
   let ventas = [];                    // ventas cerradas, sincronizadas en vivo desde Firebase
@@ -1551,6 +1559,30 @@
     } catch(e){ /* si el navegador bloquea audio, seguimos sin sonido */ }
   }
 
+  // Tres pips cortos a un tono medio (distinto en ritmo y altura de los
+  // otros dos) para avisarle a cocina que un pedido YA EN PREPARACIÓN
+  // acaba de cambiar — así lo distinguen de "pedido nuevo" sin mirar.
+  function sonarAlertaModificado(){
+    const ctx = getAudioCtxCocina();
+    if(!ctx) return;
+    try{
+      [0, 0.13, 0.26].forEach(offset=>{
+        const t0 = ctx.currentTime + offset;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 660;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.3, t0+0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.11);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0+0.12);
+      });
+    } catch(e){ /* si el navegador bloquea audio, seguimos sin sonido */ }
+  }
+
   // ---------------------------------------------------------
   // VISTA COCINA (sincronizada en vivo con Realtime Database)
   // ---------------------------------------------------------
@@ -1560,7 +1592,7 @@
       const idsActuales = new Set();
       snap.forEach(child=>{
         const v = child.val();
-        comandas.push({id:child.key, mesa:v.mesa, items:v.items||[], total:v.total, creada:v.creada||Date.now(), tomadoPor:v.tomadoPor, estado:v.estado||'cocina', listaEn:v.listaEn||null});
+        comandas.push({id:child.key, mesa:v.mesa, items:v.items||[], total:v.total, creada:v.creada||Date.now(), tomadoPor:v.tomadoPor, estado:v.estado||'cocina', listaEn:v.listaEn||null, editada:v.editada||false, itemsAnterior:v.itemsAnterior||[]});
         idsActuales.add(child.key);
       });
       if(!primeraCargaComandas){
@@ -1579,6 +1611,16 @@
         }
       }
       idsListosConocidos = idsListosActuales;
+
+      const idsEditadosActuales = new Set(comandas.filter(c=>c.editada).map(c=>c.id));
+      if(!primeraCargaComandas){
+        const nuevosEditados = comandas.filter(c=>c.editada && !idsEditadosConocidos.has(c.id));
+        if(nuevosEditados.length && vistaActual === 'kitchen'){
+          sonarAlertaModificado();
+          mostrarToast(nuevosEditados.length===1 ? `✏️ ${nuevosEditados[0].mesa} fue modificado` : `✏️ ${nuevosEditados.length} pedidos fueron modificados`);
+        }
+      }
+      idsEditadosConocidos = idsEditadosActuales;
 
       primeraCargaComandas = false;
       actualizarBadge();
@@ -2797,7 +2839,32 @@
       <div class="fin-card-sub">No sale de lo cobrado en el mostrador — normalmente es un pago hecho directo desde el banco.</div>
     </div>` : '';
 
-    cont.innerHTML = periodoHTML + balanceHTML + statsHTML + efectivoHTML + nequiHTML + transferenciaHTML;
+    // Ventas por mesero — usa el "tomadoPor" que ya se guarda en cada pedido.
+    const porMesero = {};
+    ventasP.forEach(v=>{
+      const nombre = v.tomadoPor || 'Sin asignar';
+      if(!porMesero[nombre]) porMesero[nombre] = {nombre, ventas:0, total:0, propinas:0};
+      porMesero[nombre].ventas += 1;
+      porMesero[nombre].total += v.total;
+      porMesero[nombre].propinas += (v.propina||0);
+    });
+    const meserosList = Object.values(porMesero).sort((a,b)=>b.total-a.total);
+    const meseroHTML = meserosList.length ? `<div class="fin-card">
+      <div class="fin-card-header"><span class="fin-card-icon">👥</span><span class="fin-card-title">Ventas por mesero</span></div>
+      ${meserosList.map(m=>`
+        <div class="fin-mesero-row">
+          <div>
+            <div class="fin-mesero-nombre">${m.nombre}</div>
+            <div class="fin-mesero-meta">${m.ventas} venta${m.ventas===1?'':'s'}</div>
+          </div>
+          <div class="fin-mesero-val">
+            <div class="fin-mesero-total">${fmt(Math.round(m.total))}</div>
+            ${m.propinas>0?`<div class="fin-mesero-propina">+${fmt(Math.round(m.propinas))} propina</div>`:''}
+          </div>
+        </div>`).join('')}
+    </div>` : '';
+
+    cont.innerHTML = periodoHTML + balanceHTML + statsHTML + efectivoHTML + nequiHTML + transferenciaHTML + meseroHTML;
   }
 
   // ---------------------------------------------------------
